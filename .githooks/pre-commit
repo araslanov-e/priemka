@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Не даёт закоммитить изменения приложения без поднятой версии (./bump-version.sh).
+# Пропустить проверку разово: git commit --no-verify
+set -euo pipefail
+git rev-parse --verify -q HEAD >/dev/null || exit 0
+
+# Изменены ли файлы приложения (всё, кроме документации и служебных файлов)
+APP_CHANGED=$(git diff --cached --name-only | grep -Ev '^(.*\.md|bump-version\.sh|\.githooks/.*|\.gitignore)$' || true)
+[ -z "$APP_CHANGED" ] && exit 0
+
+ver() { sed -n "s/^const VERSION='\(.*\)';/\1/p"; }
+OLD=$(git show HEAD:sw.js 2>/dev/null | ver || true)
+NEW=$(git show :sw.js 2>/dev/null | ver || true)
+
+if [ "$OLD" = "$NEW" ]; then
+  echo "⚠️  Изменены файлы приложения, но версия не поднята (сейчас $OLD):"
+  echo "$APP_CHANGED" | sed 's/^/     /'
+  echo "   Выполните ./bump-version.sh patch|minor|major и git add sw.js index.html"
+  echo "   (или git commit --no-verify, если версия не нужна)"
+  exit 1
+fi

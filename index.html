@@ -31,6 +31,7 @@
   --accent:#f2b705; --accent-ink:#1a1a1a; --bar:#0c1114; --bar-ink:#e8ebed;
   --crit:#ef5350; --major:#ff8a3d; --minor:#90a4ae; color-scheme:dark}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 var(--font);-webkit-text-size-adjust:100%}
 body{min-height:100vh;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -110,6 +111,10 @@ details[open] summary .chev{transform:rotate(180deg)}
 .btn.danger{color:var(--crit)}
 .btn:disabled{opacity:.5}
 .btn svg{width:20px;height:20px}
+.update{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:8px 0 10px 8px;border-top:1px solid rgba(255,255,255,.14);font-size:15px}
+.update button{flex:none;min-height:40px;padding:0 16px;border:0;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-weight:700}
+.update button:disabled{opacity:.6}
+.version{text-align:center;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;padding:8px 0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--bar);color:var(--bar-ink);padding:10px 16px;border-radius:8px;z-index:20;max-width:calc(100% - 32px);font-size:15px}
 .viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:30;display:flex;align-items:center;justify-content:center;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 .viewer img{max-width:100%;max-height:100%;object-fit:contain}
@@ -134,13 +139,17 @@ details[open] summary .chev{transform:rotate(180deg)}
 </style>
 </head>
 <body>
-<header class="bar"><div class="bar-in" id="bar"></div></header>
+<header class="bar"><div class="bar-in" id="bar"></div>
+ <div class="update" id="update" role="status" hidden><span>Доступна новая версия</span><button id="updateBtn">Обновить</button></div>
+</header>
 <main id="app"></main>
 <div id="toast" class="toast" hidden></div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
 <input type="file" id="gal" accept="image/*" multiple hidden>
 <script>
 'use strict';
+// Версию не меняйте вручную — используйте ./bump-version.sh <версия>
+const APP_VERSION='0.0.2';
 /* ====================== Справочники ====================== */
 const ROOMS=['Прихожая','Коридор','Кухня','Гостиная','Комната 1','Комната 2','Комната 3','Санузел','Ванная','Туалет','Балкон / лоджия','Гардероб','Общее по квартире'];
 const CATS=['Стены','Потолок','Пол','Окна','Двери','Сантехника','Электрика','Отопление и вентиляция','Отделка','Прочее'];
@@ -255,6 +264,7 @@ async function viewList(){
    ${i.object?`<div class="insp-addr">${esc(i.object)}</div>`:''}
    <div class="counts"><span class="pill">${i.defects.length} замеч.</span>${SEV.map(s=>c[s.id]?`<span class="pill"><span class="dot ${s.id}"></span>${c[s.id]}</span>`:'').join('')}</div>
   </button>`}).join('')}</div>`;
+ app.insertAdjacentHTML('beforeend',`<div class="version">Версия ${APP_VERSION}</div>`);
  app.querySelectorAll('.insp').forEach(b=>b.onclick=()=>go('/i/'+b.dataset.id));
  setActions(`<button class="btn primary" id="new">${ICON.plus}Новый осмотр</button>`);
  $('#new').onclick=async()=>{const i=newInspection();await DB.put(i);go('/i/'+i.id)};
@@ -550,7 +560,23 @@ function makePdf(jpgs,W,H){
 }
 
 /* ====================== Старт ====================== */
-if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+/* Обновления: новая версия скачивается в фоне и ждёт, пока сотрудник нажмёт «Обновить» */
+if('serviceWorker' in navigator&&location.protocol!=='file:')(async()=>{
+ let reg;try{reg=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'})}catch(e){return}
+ const show=()=>{if(reg.waiting&&navigator.serviceWorker.controller)$('#update').hidden=false};
+ const track=w=>w&&w.addEventListener('statechange',()=>{if(w.state==='installed')show()});
+ show();track(reg.installing);
+ reg.addEventListener('updatefound',()=>track(reg.installing));
+ $('#updateBtn').onclick=async()=>{const b=$('#updateBtn');b.disabled=true;b.textContent='Обновляю…';
+  if(leaving){try{await leaving()}catch(e){}}
+  if(reg.waiting)reg.waiting.postMessage('SKIP_WAITING');else location.reload()};
+ let reloading=false;
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(reloading)return;reloading=true;location.reload()});
+ // Проверять обновления при каждом возврате в приложение и раз в 30 минут
+ const check=()=>{if(navigator.onLine)reg.update().catch(()=>{})};
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)check()});
+ setInterval(check,30*60*1000);
+})();
 route();
 </script>
 </body>
