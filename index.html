@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Приёмка квартиры</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<meta name="theme-color" content="#1f2b33">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Приёмка">
+<style>
+/* Полевой инструмент: «бетон + разметочная лента». Одна колонка, крупные цели касания, нижняя панель действий. */
+:root{
+  --bg:#eceae6; --surface:#ffffff; --sunk:#f5f4f1; --ink:#1f2b33; --muted:#66727b; --line:#d6d3cd;
+  --accent:#f2b705; --accent-ink:#1f2b33; --bar:#1f2b33; --bar-ink:#f4f2ee;
+  --crit:#c62828; --major:#d9600b; --minor:#5f7280;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --r:10px;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12181c; --surface:#1b2328; --sunk:#151c20; --ink:#e8ebed; --muted:#93a0a8; --line:#2c373e;
+  --accent:#f2b705; --accent-ink:#1a1a1a; --bar:#0c1114; --bar-ink:#e8ebed;
+  --crit:#ef5350; --major:#ff8a3d; --minor:#90a4ae; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12181c; --surface:#1b2328; --sunk:#151c20; --ink:#e8ebed; --muted:#93a0a8; --line:#2c373e;
+  --accent:#f2b705; --accent-ink:#1a1a1a; --bar:#0c1114; --bar-ink:#e8ebed;
+  --crit:#ef5350; --major:#ff8a3d; --minor:#90a4ae; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 var(--font);-webkit-text-size-adjust:100%}
+body{min-height:100vh;padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.bar{position:sticky;top:0;z-index:5;background:var(--bar);color:var(--bar-ink);
+  padding-top:env(safe-area-inset-top,0px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px));
+  border-bottom:4px solid var(--accent)}
+.bar-in{display:flex;align-items:center;gap:4px;min-height:56px}
+.bar h1{flex:1;min-width:0;margin:0;font-size:18px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:8px}
+.icon-btn{width:44px;height:44px;border:0;background:transparent;color:inherit;border-radius:8px;display:grid;place-items:center;flex:none}
+.icon-btn:active{background:rgba(255,255,255,.12)}
+.icon-btn svg{width:24px;height:24px}
+main{max-width:720px;margin:0 auto;padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px}
+.section-label{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:650;margin:4px 2px -8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
+.list{display:flex;flex-direction:column;gap:10px}
+.insp{display:block;width:100%;text-align:left;padding:14px 16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);color:inherit}
+.insp:active{background:var(--sunk)}
+.insp-top{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.insp-apt{font-size:20px;font-weight:700}
+.insp-date{color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.insp-addr{color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+.counts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:3px 9px;border-radius:99px;background:var(--sunk);border:1px solid var(--line);font-variant-numeric:tabular-nums}
+.dot{width:8px;height:8px;border-radius:50%;flex:none}
+.dot.crit{background:var(--crit)}.dot.major{background:var(--major)}.dot.minor{background:var(--minor)}
+.empty{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty strong{display:block;color:var(--ink);font-size:18px;margin-bottom:6px}
+.fields{padding:4px 16px 16px;display:grid;gap:12px}
+.field{display:grid;gap:4px;min-width:0}
+.field label,.flabel{font-size:13px;color:var(--muted);font-weight:600}
+.input{width:100%;min-height:46px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--sunk)}
+textarea.input{min-height:96px;resize:vertical}
+.input:focus{border-color:var(--accent);outline:none;background:var(--surface)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+details.card summary>span:first-child{white-space:nowrap;flex:none}
+details.card summary{list-style:none;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:650;cursor:pointer}
+details.card summary::-webkit-details-marker{display:none}
+details.card summary .sub{font-weight:400;color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+details[open] summary .chev{transform:rotate(180deg)}
+.chev{flex:none;transition:transform .15s}
+.room-h{display:flex;justify-content:space-between;align-items:baseline;font-weight:700;font-size:15px;padding:0 2px;margin-top:4px}
+.room-h span{color:var(--muted);font-weight:500;font-size:13px}
+.defect{display:flex;gap:12px;width:100%;text-align:left;padding:12px;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--minor);border-radius:var(--r);color:inherit;align-items:flex-start}
+.defect.crit{border-left-color:var(--crit)}.defect.major{border-left-color:var(--major)}
+.defect-n{font-family:var(--mono);font-size:13px;color:var(--muted);min-width:2.2em;padding-top:2px}
+.defect-body{flex:1;min-width:0}
+.defect-cat{font-size:13px;color:var(--muted)}
+.defect-text{overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.defect-thumb{width:56px;height:56px;border-radius:6px;object-fit:cover;flex:none;background:var(--sunk)}
+.thumb-wrap{position:relative;flex:none}
+.thumb-count{position:absolute;right:-4px;bottom:-4px;background:var(--bar);color:var(--bar-ink);font-size:11px;border-radius:99px;padding:1px 6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:40px;padding:8px 14px;border-radius:99px;border:1px solid var(--line);background:var(--sunk);color:inherit}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.sev{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.sev button{min-height:48px;border-radius:8px;border:1px solid var(--line);background:var(--sunk);display:flex;align-items:center;justify-content:center;gap:6px;font-size:14px;padding:6px}
+.sev button[aria-pressed="true"]{border-width:2px;font-weight:700}
+.sev button.crit[aria-pressed="true"]{border-color:var(--crit);color:var(--crit)}
+.sev button.major[aria-pressed="true"]{border-color:var(--major);color:var(--major)}
+.sev button.minor[aria-pressed="true"]{border-color:var(--minor)}
+.phrases{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.phrases::-webkit-scrollbar{display:none}
+.phrase{flex:none;font-size:14px;padding:8px 12px;border-radius:8px;border:1px dashed var(--line);background:transparent;color:inherit;max-width:260px;text-align:left}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.photo{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--sunk);max-width:100%}
+.photo img{width:100%;height:100%;object-fit:cover;display:block}
+.photo .del{position:absolute;top:4px;right:4px;width:32px;height:32px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:18px;line-height:1}
+.add-photo{aspect-ratio:1;border-radius:8px;border:2px dashed var(--line);background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--muted);font-size:13px}
+.add-photo svg{width:28px;height:28px}
+.actions{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);
+  padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.actions-in{max-width:720px;margin:0 auto;display:flex;gap:10px}
+.btn{flex:1;min-height:52px;border-radius:10px;border:1px solid var(--line);background:var(--sunk);font-weight:650;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 14px;color:inherit;text-decoration:none}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger{color:var(--crit)}
+.btn:disabled{opacity:.5}
+.btn svg{width:20px;height:20px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--bar);color:var(--bar-ink);padding:10px 16px;border-radius:8px;z-index:20;max-width:calc(100% - 32px);font-size:15px}
+.viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:30;display:flex;align-items:center;justify-content:center;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+.viewer img{max-width:100%;max-height:100%;object-fit:contain}
+.confirm{padding:14px 16px;display:grid;gap:10px}
+.confirm p{margin:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border-radius:var(--r);overflow:hidden;border:1px solid var(--line)}
+.stat{background:var(--surface);padding:12px;display:grid;gap:2px}
+.stat b{font-size:26px;font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.export-row{display:flex;gap:12px;align-items:center;padding:14px 16px;border-top:1px solid var(--line)}
+.export-row:first-child{border-top:0}
+.ext{font-family:var(--mono);font-weight:700;font-size:13px;width:52px;height:52px;border-radius:8px;display:grid;place-items:center;flex:none;background:var(--sunk);border:1px solid var(--line)}
+.export-info{flex:1;min-width:0}
+.export-info b{display:block}
+.export-info small{color:var(--muted)}
+.export-btns{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px 14px}
+.export-btns .btn{min-height:44px;font-size:14px}
+.note{font-size:14px;color:var(--muted);padding:0 2px}
+.custom-room{display:flex;gap:8px}
+.custom-room .input{flex:1;min-width:0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="bar"><div class="bar-in" id="bar"></div></header>
+<main id="app"></main>
+<div id="toast" class="toast" hidden></div>
+<input type="file" id="cam" accept="image/*" capture="environment" hidden>
+<input type="file" id="gal" accept="image/*" multiple hidden>
+<script>
+'use strict';
+/* ====================== Справочники ====================== */
+const ROOMS=['Прихожая','Коридор','Кухня','Гостиная','Комната 1','Комната 2','Комната 3','Санузел','Ванная','Туалет','Балкон / лоджия','Гардероб','Общее по квартире'];
+const CATS=['Стены','Потолок','Пол','Окна','Двери','Сантехника','Электрика','Отопление и вентиляция','Отделка','Прочее'];
+const SEV=[{id:'crit',label:'Критичный'},{id:'major',label:'Значительный'},{id:'minor',label:'Малозначит.',full:'Малозначительный'}];
+const SEVL=Object.fromEntries(SEV.map(s=>[s.id,s.full||s.label]));
+const PHRASES={
+ 'Стены':['Отклонение от вертикали сверх допустимого','Неровность поверхности, зазор под двухметровой рейкой','Трещина в штукатурном слое','Отслоение обоев','Загрязнение поверхности','Отсутствует/повреждён угловой профиль'],
+ 'Потолок':['Трещина по шву плит перекрытия','Перепад уровня потолка','Следы протечки','Неровность окраски, полосы'],
+ 'Пол':['Перепад уровня стяжки','Пустоты под плиткой (глухой звук при простукивании)','Скол плитки','Скрип покрытия','Зазор между полом и плинтусом','Неравномерная ширина межплиточных швов'],
+ 'Окна':['Царапина на стеклопакете','Створка не отрегулирована, закрывается с усилием','Продувание по периметру створки','Повреждение уплотнителя','Повреждение/отсутствие откоса','Не закреплён отлив / подоконник'],
+ 'Двери':['Дверное полотно трётся о коробку','Неравномерный зазор в притворе','Механическое повреждение полотна','Не работает/заедает замок'],
+ 'Сантехника':['Протечка в соединении','Отсутствует герметик по примыканию','Недостаточный уклон канализации','Не закреплён прибор','Нет давления / слабый напор'],
+ 'Электрика':['Не работает розетка','Не работает выключатель','Розетка/выключатель установлены с перекосом','Не подключено заземление','Нет маркировки автоматов в щите'],
+ 'Отопление и вентиляция':['Отсутствует тяга в вентканале','Радиатор не прогревается','Протечка в узле подключения радиатора','Не закреплён радиатор'],
+ 'Отделка':['Механическое повреждение','Загрязнение','Следы краски/раствора','Неровный стык'],
+ 'Прочее':['Отсутствует элемент по проекту','Строительный мусор'],
+};
+const ICON={
+ back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+ plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+ doc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 13h8M8 17h5"/></svg>',
+ cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+ img:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>',
+ trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+ check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>',
+ share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 14v6h14v-6"/></svg>',
+ save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+};
+
+/* ====================== Утилиты ====================== */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const today=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const fmtDate=s=>{if(!s)return '';const [y,m,d]=s.split('-');return `${d}.${m}.${y}`};
+const pref={get(k,d=''){try{return localStorage.getItem('pr_'+k)??d}catch(e){return d}},set(k,v){try{localStorage.setItem('pr_'+k,v)}catch(e){}}};
+let toastT;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
+function debounce(fn,ms){let t;const f=(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)};f.flush=(...a)=>{clearTimeout(t);return fn(...a)};return f}
+
+/* ====================== Хранилище (IndexedDB) ====================== */
+let dbp;
+function db(){return dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open('priemka',1);
+ r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('inspections',{keyPath:'id'});d.createObjectStore('photos',{keyPath:'id'})};
+ r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))}
+async function tx(store,mode,fn){const d=await db();return new Promise((res,rej)=>{const t=d.transaction(store,mode);let out;const r=fn(t.objectStore(store));
+ if(r)r.onsuccess=()=>out=r.result;t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}
+const DB={
+ all:()=>tx('inspections','readonly',s=>s.getAll()),
+ get:id=>tx('inspections','readonly',s=>s.get(id)),
+ put:o=>{o.updated=Date.now();return tx('inspections','readwrite',s=>s.put(o))},
+ del:id=>tx('inspections','readwrite',s=>s.delete(id)),
+ photo:id=>tx('photos','readonly',s=>s.get(id)),
+ putPhoto:p=>tx('photos','readwrite',s=>s.put(p)),
+ delPhoto:id=>tx('photos','readwrite',s=>s.delete(id)),
+};
+if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+
+const urlCache=new Map();
+async function photoURL(id){if(urlCache.has(id))return urlCache.get(id);const p=await DB.photo(id);if(!p)return '';const u=URL.createObjectURL(p.blob);urlCache.set(id,u);return u}
+async function fillThumbs(root=document){for(const im of root.querySelectorAll('img[data-pid]')){const u=await photoURL(im.dataset.pid);if(u)im.src=u}}
+
+function loadImage(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src})}
+async function compressPhoto(file){
+ const url=URL.createObjectURL(file);
+ try{const img=await loadImage(url);const max=1600;let w=img.naturalWidth,h=img.naturalHeight;const s=Math.min(1,max/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);
+  const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);
+  const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',0.82));return {blob,w,h}}
+ finally{URL.revokeObjectURL(url)}
+}
+
+/* ====================== Модель ====================== */
+function newInspection(){return {id:uid(),created:Date.now(),updated:Date.now(),date:today(),object:'',apt:'',owner:'',developer:'',inspector:pref.get('inspector'),conclusion:'',defects:[]}}
+function roomOrder(insp){const extra=[];for(const d of insp.defects)if(!ROOMS.includes(d.room)&&!extra.includes(d.room))extra.push(d.room);return [...ROOMS,...extra]}
+function grouped(insp){const order=roomOrder(insp);const g=[];let n=0;
+ for(const r of order){const items=insp.defects.filter(d=>d.room===r);if(!items.length)continue;g.push({room:r,items:items.map(d=>({n:++n,d}))})}return g}
+function counts(insp){const c={crit:0,major:0,minor:0};for(const d of insp.defects)c[d.severity]=(c[d.severity]||0)+1;return c}
+const isEmptyDefect=d=>!d.text.trim()&&!d.photos.length;
+
+/* ====================== Каркас ====================== */
+function setBar(title,back,right=''){
+ $('#bar').innerHTML=(back!=null?`<button class="icon-btn" id="back" aria-label="Назад">${ICON.back}</button>`:'')+`<h1>${esc(title)}</h1>`+right;
+ if(back!=null)$('#back').onclick=()=>go(back);
+}
+function setActions(html){let a=$('#actions');if(!html){a&&a.remove();return}
+ if(!a){a=document.createElement('div');a.id='actions';a.className='actions';document.body.appendChild(a)}a.innerHTML=`<div class="actions-in">${html}</div>`;return a}
+function go(h){if(location.hash==='#'+h)route();else location.hash=h}
+let leaving=null; // сохранить несохранённое при уходе со страницы
+window.addEventListener('hashchange',route);
+async function route(){
+ if(leaving){const f=leaving;leaving=null;await f()}
+ window.scrollTo(0,0);
+ const p=(location.hash.slice(1)||'/').split('/').filter(Boolean);
+ try{
+  if(p[0]==='i'&&p[2]==='d')return await viewDefect(p[1],p[3]);
+  if(p[0]==='i'&&p[2]==='export')return await viewExport(p[1]);
+  if(p[0]==='i')return await viewInspection(p[1]);
+  return await viewList();
+ }catch(e){console.error(e);toast('Ошибка: '+e.message)}
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&leaving)leaving()});
+
+/* ====================== Экран: список осмотров ====================== */
+async function viewList(){
+ setBar('Приёмка квартир',null);
+ const all=(await DB.all()).sort((a,b)=>b.updated-a.updated);
+ const app=$('#app');
+ if(!all.length){app.innerHTML=`<div class="empty"><strong>Осмотров пока нет</strong>Создайте осмотр, чтобы вносить дефекты по помещениям и получить акт в Word или PDF. Всё хранится на этом телефоне и работает без интернета.</div>`}
+ else app.innerHTML=`<div class="section-label">Осмотры · ${all.length}</div><div class="list">${all.map(i=>{const c=counts(i);return `
+  <button class="insp" data-id="${i.id}">
+   <div class="insp-top"><span class="insp-apt">${i.apt?'Кв. '+esc(i.apt):'Без номера'}</span><span class="insp-date">${fmtDate(i.date)}</span></div>
+   ${i.object?`<div class="insp-addr">${esc(i.object)}</div>`:''}
+   <div class="counts"><span class="pill">${i.defects.length} замеч.</span>${SEV.map(s=>c[s.id]?`<span class="pill"><span class="dot ${s.id}"></span>${c[s.id]}</span>`:'').join('')}</div>
+  </button>`}).join('')}</div>`;
+ app.querySelectorAll('.insp').forEach(b=>b.onclick=()=>go('/i/'+b.dataset.id));
+ setActions(`<button class="btn primary" id="new">${ICON.plus}Новый осмотр</button>`);
+ $('#new').onclick=async()=>{const i=newInspection();await DB.put(i);go('/i/'+i.id)};
+}
+
+/* ====================== Экран: осмотр ====================== */
+async function viewInspection(id){
+ const insp=await DB.get(id);if(!insp)return go('/');
+ const before=insp.defects.length;insp.defects=insp.defects.filter(d=>!isEmptyDefect(d));if(insp.defects.length!==before)await DB.put(insp);
+ setBar(insp.apt?'Кв. '+insp.apt:'Новый осмотр','/',`<button class="icon-btn" id="del" aria-label="Удалить осмотр">${ICON.trash}</button>`);
+ const fresh=!insp.object&&!insp.apt&&!insp.defects.length;
+ const g=grouped(insp);
+ const app=$('#app');
+ app.innerHTML=`
+ <div id="confirm" hidden></div>
+ <details class="card" ${fresh?'open':''}>
+  <summary><span>Данные осмотра</span><span class="sub">${esc([insp.object,fmtDate(insp.date)].filter(Boolean).join(' · '))}</span><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></summary>
+  <div class="fields">
+   <div class="field"><label for="f-object">Объект (ЖК, адрес, корпус)</label><input class="input" id="f-object" data-f="object" value="${esc(insp.object)}" placeholder="ЖК «Северный», ул. Ленина, 12, корп. 2"></div>
+   <div class="row2">
+    <div class="field"><label for="f-apt">Квартира №</label><input class="input" id="f-apt" data-f="apt" value="${esc(insp.apt)}" inputmode="numeric"></div>
+    <div class="field"><label for="f-date">Дата осмотра</label><input class="input" id="f-date" type="date" data-f="date" value="${esc(insp.date)}"></div>
+   </div>
+   <div class="field"><label for="f-owner">Собственник / участник ДДУ</label><input class="input" id="f-owner" data-f="owner" value="${esc(insp.owner)}" autocomplete="off"></div>
+   <div class="field"><label for="f-developer">Представитель застройщика</label><input class="input" id="f-developer" data-f="developer" value="${esc(insp.developer)}" autocomplete="off"></div>
+   <div class="field"><label for="f-inspector">Специалист по приёмке</label><input class="input" id="f-inspector" data-f="inspector" value="${esc(insp.inspector)}" autocomplete="name"></div>
+   <div class="field"><label for="f-conclusion">Заключение (в конце акта)</label><textarea class="input" id="f-conclusion" data-f="conclusion" placeholder="Квартира не может быть принята до устранения замечаний, указанных в акте.">${esc(insp.conclusion)}</textarea></div>
+  </div>
+ </details>
+ <div class="section-label">Замечания · ${insp.defects.length}</div>
+ ${g.length?g.map(gr=>`<div class="room-h">${esc(gr.room)}<span>${gr.items.length}</span></div><div class="list">${gr.items.map(({n,d})=>`
+  <button class="defect ${d.severity}" data-d="${d.id}">
+   <span class="defect-n">${n}.</span>
+   <span class="defect-body"><span class="defect-cat">${esc(d.category)} · ${esc(SEVL[d.severity])}</span><span class="defect-text">${esc(d.text)||'<i>Без описания</i>'}</span></span>
+   ${d.photos.length?`<span class="thumb-wrap"><img class="defect-thumb" data-pid="${d.photos[0]}" alt="">${d.photos.length>1?`<span class="thumb-count">${d.photos.length}</span>`:''}</span>`:''}
+  </button>`).join('')}</div>`).join(''):`<div class="empty card"><strong>Замечаний нет</strong>Нажмите «Замечание», выберите помещение и опишите дефект. Фото можно сделать сразу с камеры.</div>`}`;
+ fillThumbs(app);
+ const save=debounce(()=>DB.put(insp),400);
+ app.querySelectorAll('[data-f]').forEach(el=>el.addEventListener('input',()=>{insp[el.dataset.f]=el.value;if(el.dataset.f==='inspector')pref.set('inspector',el.value);
+  if(el.dataset.f==='apt')$('#bar h1').textContent=el.value?'Кв. '+el.value:'Новый осмотр';save()}));
+ leaving=()=>save.flush();
+ app.querySelectorAll('.defect').forEach(b=>b.onclick=()=>go(`/i/${id}/d/${b.dataset.d}`));
+ $('#del').onclick=()=>{const c=$('#confirm');c.hidden=false;c.className='card confirm';
+  c.innerHTML=`<p><b>Удалить осмотр${insp.apt?' кв. '+esc(insp.apt):''}?</b> Все замечания и фото будут стёрты с телефона.</p><div class="actions-in" style="margin:0"><button class="btn" id="no">Отмена</button><button class="btn danger" id="yes">${ICON.trash}Удалить</button></div>`;
+  $('#no').onclick=()=>c.hidden=true;
+  $('#yes').onclick=async()=>{save.flush=()=>{};leaving=null;for(const d of insp.defects)for(const p of d.photos)await DB.delPhoto(p);await DB.del(id);toast('Осмотр удалён');go('/')};
+  window.scrollTo({top:0,behavior:'smooth'})};
+ setActions(`<button class="btn" id="exp">${ICON.doc}Акт</button><button class="btn primary" id="add" style="flex:1.6">${ICON.plus}Замечание</button>`);
+ $('#add').onclick=()=>go(`/i/${id}/d/${uid()}`);
+ $('#exp').onclick=()=>go(`/i/${id}/export`);
+}
+
+/* ====================== Экран: замечание ====================== */
+async function viewDefect(id,did){
+ const insp=await DB.get(id);if(!insp)return go('/');
+ let d=insp.defects.find(x=>x.id===did);const isNew=!d;
+ if(!d){d={id:did,room:pref.get('room',ROOMS[0]),category:pref.get('cat',CATS[0]),severity:'major',text:'',norm:'',photos:[],created:Date.now()};insp.defects.push(d)}
+ const back=`/i/${id}`;
+ setBar(isNew?'Новое замечание':'Замечание',back,`<button class="icon-btn" id="del" aria-label="Удалить замечание">${ICON.trash}</button>`);
+ const save=debounce(()=>DB.put(insp),300);
+ leaving=()=>save.flush();
+ const roomsList=roomOrder(insp).includes(d.room)?roomOrder(insp):[...roomOrder(insp),d.room];
+ const app=$('#app');
+ const render=()=>{app.innerHTML=`
+ <div class="field"><span class="flabel">Помещение</span>
+  <div class="chips" id="rooms">${roomsList.map(r=>`<button class="chip" aria-pressed="${r===d.room}" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>
+  <div class="custom-room"><input class="input" id="customRoom" placeholder="Другое помещение…"><button class="btn" id="addRoom" style="flex:none">Добавить</button></div>
+ </div>
+ <div class="field"><span class="flabel">Конструктив</span>
+  <div class="chips" id="cats">${CATS.map(c=>`<button class="chip" aria-pressed="${c===d.category}" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+ </div>
+ <div class="field"><span class="flabel">Критичность</span>
+  <div class="sev" id="sev">${SEV.map(s=>`<button class="${s.id}" aria-pressed="${s.id===d.severity}" data-v="${s.id}"><span class="dot ${s.id}"></span>${s.label}</button>`).join('')}</div>
+ </div>
+ <div class="field"><label for="text">Описание дефекта</label>
+  <div class="phrases" id="phrases">${(PHRASES[d.category]||[]).map(p=>`<button class="phrase">${esc(p)}</button>`).join('')}</div>
+  <textarea class="input" id="text" rows="4" placeholder="Что не так, где именно, замеры">${esc(d.text)}</textarea>
+ </div>
+ <div class="field"><label for="norm">Норматив (необязательно)</label><input class="input" id="norm" value="${esc(d.norm)}" placeholder="СП 71.13330.2017, табл. 7.4"></div>
+ <div class="field"><span class="flabel">Фото · ${d.photos.length}</span>
+  <div class="photos" id="photos">
+   ${d.photos.map(p=>`<div class="photo"><img data-pid="${p}" alt="Фото дефекта" data-view="${p}"><button class="del" data-rm="${p}" aria-label="Удалить фото">×</button></div>`).join('')}
+   <button class="add-photo" id="shoot">${ICON.cam}Снять</button>
+   <button class="add-photo" id="pick">${ICON.img}Из галереи</button>
+  </div>
+ </div>`;
+ fillThumbs(app);bind()};
+ const bind=()=>{
+  const pick=(sel,key,after)=>app.querySelectorAll(sel+' [data-v]').forEach(b=>b.onclick=()=>{d[key]=b.dataset.v;app.querySelectorAll(sel+' [data-v]').forEach(x=>x.setAttribute('aria-pressed',x===b));after&&after();save()});
+  pick('#rooms','room',()=>pref.set('room',d.room));
+  pick('#cats','category',()=>{pref.set('cat',d.category);$('#phrases').innerHTML=(PHRASES[d.category]||[]).map(p=>`<button class="phrase">${esc(p)}</button>`).join('');bindPhrases()});
+  pick('#sev','severity');
+  const bindPhrases=()=>app.querySelectorAll('.phrase').forEach(b=>b.onclick=()=>{const t=$('#text');t.value=t.value.trim()?t.value.trim()+'. '+b.textContent:b.textContent;d.text=t.value;t.focus();save()});
+  bindPhrases();
+  $('#text').oninput=e=>{d.text=e.target.value;save()};
+  $('#norm').oninput=e=>{d.norm=e.target.value;save()};
+  $('#addRoom').onclick=()=>{const v=$('#customRoom').value.trim();if(!v)return;if(!roomsList.includes(v))roomsList.push(v);d.room=v;pref.set('room',v);save();render()};
+  $('#shoot').onclick=()=>{$('#cam').value='';$('#cam').click()};
+  $('#pick').onclick=()=>{$('#gal').value='';$('#gal').click()};
+  app.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const p=b.dataset.rm;d.photos=d.photos.filter(x=>x!==p);await DB.delPhoto(p);await DB.put(insp);render()});
+  app.querySelectorAll('[data-view]').forEach(im=>im.onclick=()=>viewPhoto(im.dataset.view));
+ };
+ const onFiles=async e=>{const files=[...e.target.files];if(!files.length)return;toast(files.length>1?`Обработка ${files.length} фото…`:'Обработка фото…');
+  for(const f of files){try{const c=await compressPhoto(f);const pid=uid();await DB.putPhoto({id:pid,...c});d.photos.push(pid)}catch(err){toast('Не удалось прочитать фото')}}
+  await DB.put(insp);render();toast('Фото добавлено')};
+ $('#cam').onchange=onFiles;$('#gal').onchange=onFiles;
+ render();
+ $('#del').onclick=async()=>{for(const p of d.photos)await DB.delPhoto(p);insp.defects=insp.defects.filter(x=>x!==d);leaving=null;await DB.put(insp);toast('Замечание удалено');go(back)};
+ setActions(`<button class="btn" id="next">${ICON.plus}Ещё</button><button class="btn primary" id="done" style="flex:1.6">${ICON.check}Готово</button>`);
+ $('#done').onclick=()=>go(back);
+ $('#next').onclick=async()=>{await save.flush();leaving=null;go(`/i/${id}/d/${uid()}`)};
+}
+async function viewPhoto(pid){const u=await photoURL(pid);const v=document.createElement('div');v.className='viewer';v.innerHTML=`<img src="${u}" alt="Фото">`;v.onclick=()=>v.remove();document.body.appendChild(v)}
+
+/* ====================== Экран: акт ====================== */
+async function viewExport(id){
+ const insp=await DB.get(id);if(!insp)return go('/');
+ insp.defects=insp.defects.filter(d=>!isEmptyDefect(d));
+ setBar('Акт осмотра','/i/'+id);
+ const c=counts(insp);const photos=insp.defects.reduce((a,d)=>a+d.photos.length,0);
+ const missing=[!insp.object&&'объект',!insp.apt&&'номер квартиры',!insp.inspector&&'специалист'].filter(Boolean);
+ $('#app').innerHTML=`
+ <div class="stats">${SEV.map(s=>`<div class="stat"><b>${c[s.id]||0}</b><span><span class="dot ${s.id}"></span>${s.label}</span></div>`).join('')}</div>
+ <p class="note">Всего замечаний: ${insp.defects.length}, фото: ${photos}.${missing.length?` Не заполнено: ${missing.join(', ')}.`:''}</p>
+ <div class="card">
+  <div class="export-row"><span class="ext">DOCX</span><span class="export-info"><b>Word</b><small>Можно править перед отправкой</small></span></div>
+  <div class="export-btns" id="docx-btns"><button class="btn primary" data-make="docx">Сформировать</button></div>
+  <div class="export-row"><span class="ext">PDF</span><span class="export-info"><b>PDF</b><small>Для отправки и печати</small></span></div>
+  <div class="export-btns" id="pdf-btns"><button class="btn primary" data-make="pdf">Сформировать</button></div>
+ </div>
+ <p class="note">Файл сохранится в «Загрузки» или откроется меню «Поделиться» — можно сразу отправить в мессенджер или на почту.</p>`;
+ setActions('');
+ const base=`Акт_кв${(insp.apt||'').replace(/[^\wа-яА-ЯёЁ-]+/g,'_')||'Б-Н'}_${fmtDate(insp.date).replace(/\./g,'-')}`;
+ document.querySelectorAll('[data-make]').forEach(b=>b.onclick=async()=>{
+  const kind=b.dataset.make;const box=$('#'+kind+'-btns');b.disabled=true;b.textContent='Формирую…';
+  try{const blob=kind==='docx'?await buildDocx(insp):await buildPdf(insp);const name=`${base}.${kind}`;
+   const file=new File([blob],name,{type:blob.type});const canShare=!!(navigator.canShare&&navigator.canShare({files:[file]}));
+   box.innerHTML=`<button class="btn primary" data-act="save">${ICON.save}Сохранить</button>${canShare?`<button class="btn" data-act="share">${ICON.share}Отправить</button>`:''}`;
+   box.querySelector('[data-act=save]').onclick=()=>download(blob,name);
+   const sh=box.querySelector('[data-act=share]');if(sh)sh.onclick=()=>navigator.share({files:[file],title:name}).catch(()=>{});
+   toast(`Готово: ${(blob.size/1048576).toFixed(1)} МБ`);
+  }catch(e){console.error(e);b.disabled=false;b.textContent='Повторить';toast('Не удалось сформировать: '+e.message)}
+ });
+}
+function download(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000)}
+
+/* ====================== ZIP (без сжатия) ====================== */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(u){let c=0xFFFFFFFF;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0}
+function zip(files,type){
+ const enc=new TextEncoder();const parts=[],cen=[];let off=0;
+ for(const f of files){const nm=enc.encode(f.name);const data=typeof f.data==='string'?enc.encode(f.data):f.data;const crc=crc32(data),sz=data.length;
+  const h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(12,0x21,true);
+  h.setUint32(14,crc,true);h.setUint32(18,sz,true);h.setUint32(22,sz,true);h.setUint16(26,nm.length,true);
+  parts.push(new Uint8Array(h.buffer),nm,data);
+  const c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(14,0x21,true);
+  c.setUint32(16,crc,true);c.setUint32(20,sz,true);c.setUint32(24,sz,true);c.setUint16(28,nm.length,true);c.setUint32(42,off,true);
+  cen.push(new Uint8Array(c.buffer),nm);off+=30+nm.length+sz}
+ const cs=cen.reduce((a,b)=>a+b.length,0);const e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+ return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type})
+}
+
+/* ====================== Word (.docx) ====================== */
+async function buildDocx(insp){
+ const x=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+ const SC={crit:'C62828',major:'D9600B',minor:'5F7280'};
+ const run=(t,o={})=>`<w:r><w:rPr>${o.b?'<w:b/>':''}${o.i?'<w:i/>':''}${o.color?`<w:color w:val="${o.color}"/>`:''}${o.sz?`<w:sz w:val="${o.sz}"/><w:szCs w:val="${o.sz}"/>`:''}${o.caps?'<w:caps/>':''}</w:rPr>${String(t??'').split('\n').map((l,i)=>(i?'<w:br/>':'')+`<w:t xml:space="preserve">${x(l)}</w:t>`).join('')}</w:r>`;
+ const P=(runs,o={})=>`<w:p><w:pPr>${o.keep?'<w:keepNext/>':''}<w:spacing w:before="${o.before||0}" w:after="${o.after??80}"/>${o.jc?`<w:jc w:val="${o.jc}"/>`:''}</w:pPr>${runs}</w:p>`;
+ const cell=(w,content,o={})=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.span?`<w:gridSpan w:val="${o.span}"/>`:''}${o.fill?`<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>`:''}</w:tcPr>${content||P('')}</w:tc>`;
+ const tbl=(cols,rows,borders=true)=>`<w:tbl><w:tblPr><w:tblW w:w="${cols.reduce((a,b)=>a+b,0)}" w:type="dxa"/><w:tblLayout w:type="fixed"/>${borders?`<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="single" w:sz="4" w:space="0" w:color="A9B0B5"/>`).join('')}</w:tblBorders>`:''}<w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${cols.map(c=>`<w:gridCol w:w="${c}"/>`).join('')}</w:tblGrid>${rows.join('')}</w:tbl>`;
+ const media=[];let n=0;
+ const image=async pid=>{const p=await DB.photo(pid);if(!p)return '';n++;const rid='rIdImg'+n;media.push({name:`word/media/img${n}.jpg`,data:new Uint8Array(await p.blob.arrayBuffer()),rid,target:`media/img${n}.jpg`});
+  const cx=1371600,cy=Math.round(cx*p.h/p.w);
+  return `<w:p><w:pPr><w:spacing w:before="0" w:after="60"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${n}" name="Фото ${n}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${n}" name="img${n}.jpg"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`};
+ const c=counts(insp);
+ let body='';
+ body+=P(run('Акт осмотра квартиры',{b:true,sz:32}),{jc:'center',after:40});
+ body+=P(run('Перечень выявленных недостатков (дефектов)',{sz:22,color:'5F6B73'}),{jc:'center',after:240});
+ const meta=[['Объект',insp.object],['Квартира №',insp.apt],['Дата осмотра',fmtDate(insp.date)],['Собственник / участник ДДУ',insp.owner],['Представитель застройщика',insp.developer],['Специалист по приёмке',insp.inspector]];
+ body+=tbl([3000,6638],meta.map(([k,v])=>`<w:tr>${cell(3000,P(run(k,{color:'5F6B73'}),{after:0}))}${cell(6638,P(run(v||'—',{b:true}),{after:0}))}</w:tr>`),false);
+ body+=P(run(`Всего замечаний: ${insp.defects.length}. `,{b:true})+run(`Критичных — ${c.crit||0}, значительных — ${c.major||0}, малозначительных — ${c.minor||0}.`),{before:200,after:200});
+ const cols=[560,4878,1800,2400];
+ const rows=[`<w:tr><w:trPr><w:tblHeader/></w:trPr>${['№','Описание дефекта','Критичность','Фото'].map((h,i)=>cell(cols[i],P(run(h,{b:true,sz:18}),{after:0}),{fill:'E6E3DD'})).join('')}</w:tr>`];
+ for(const g of grouped(insp)){
+  rows.push(`<w:tr><w:trPr><w:cantSplit/></w:trPr>${cell(9638,P(run(g.room,{b:true}),{after:0,keep:true}),{span:4,fill:'F3F1EC'})}</w:tr>`);
+  for(const {n:num,d} of g.items){
+   let desc=P(run(d.category,{b:true,sz:18,color:'5F6B73'}),{after:40})+P(run(d.text),{after:d.norm?40:0});
+   if(d.norm)desc+=P(run('Норматив: '+d.norm,{i:true,sz:18,color:'5F6B73'}),{after:0});
+   let ph='';for(const p of d.photos)ph+=await image(p);
+   rows.push(`<w:tr>${cell(cols[0],P(run(num+'.'),{after:0}))}${cell(cols[1],desc)}${cell(cols[2],P(run(SEVL[d.severity],{b:true,color:SC[d.severity],sz:18}),{after:0}))}${cell(cols[3],ph||P(run('—',{color:'9AA3A9'}),{after:0}))}</w:tr>`);
+  }
+ }
+ if(insp.defects.length)body+=tbl(cols,rows);else body+=P(run('Замечаний не выявлено.'));
+ body+=P(run('Заключение',{b:true,sz:24}),{before:320,after:80,keep:true});
+ body+=P(run(insp.conclusion||(insp.defects.length?'Выявленные недостатки подлежат устранению застройщиком. Квартира может быть принята после их устранения и повторного осмотра.':'Недостатков, препятствующих приёмке, не выявлено.')),{after:360});
+ const sig=[['Специалист по приёмке',insp.inspector],['Собственник / участник ДДУ',insp.owner],['Представитель застройщика',insp.developer]];
+ body+=tbl([3600,3200,2838],sig.map(([k,v])=>`<w:tr>${cell(3600,P(run(k,{color:'5F6B73'}),{before:240,after:0}))}${cell(3200,P(run('______________________'),{before:240,after:0}))}${cell(2838,P(run(v?`/ ${v} /`:'/                    /'),{before:240,after:0}))}</w:tr>`),false);
+ const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${body}<w:sectPr><w:footerReference w:type="default" r:id="rIdFtr"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+ const footer=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="right"/></w:pPr>${run(`Акт осмотра · кв. ${insp.apt||'—'} · стр. `,{sz:16,color:'8A949A'})}<w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`;
+ const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial" w:cs="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="ru-RU"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="80" w:line="264" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`;
+ const R='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+ const docRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="${R}/styles" Target="styles.xml"/><Relationship Id="rIdFtr" Type="${R}/footer" Target="footer1.xml"/>${media.map(m=>`<Relationship Id="${m.rid}" Type="${R}/image" Target="${m.target}"/>`).join('')}</Relationships>`;
+ const rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="word/document.xml"/></Relationships>`;
+ const ct=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>`;
+ return zip([{name:'[Content_Types].xml',data:ct},{name:'_rels/.rels',data:rels},{name:'word/document.xml',data:doc},{name:'word/styles.xml',data:styles},{name:'word/footer1.xml',data:footer},{name:'word/_rels/document.xml.rels',data:docRels},...media],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+}
+
+/* ====================== PDF (страницы рисуются на canvas) ====================== */
+async function buildPdf(insp){
+ const W=1240,H=1754,M=96,CW=W-2*M,FOOT=H-70;   // A4 при 150 dpi
+ const F='Arial,"Helvetica Neue",Helvetica,Roboto,sans-serif';
+ const COL={ink:'#1f2b33',muted:'#5f6b73',line:'#c9cdd0',band:'#f1efea',crit:'#c62828',major:'#d9600b',minor:'#5f7280',accent:'#f2b705'};
+ const pages=[];let ctx,y;
+ const newPage=()=>{const c=document.createElement('canvas');c.width=W;c.height=H;ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.textBaseline='top';pages.push(c);y=M};
+ const ensure=h=>{if(y+h>FOOT-20)newPage()};
+ const font=(sz,w=400)=>ctx.font=`${w} ${sz}px ${F}`;
+ const wrap=(text,maxW)=>{const out=[];for(const para of String(text||'').split('\n')){let line='';for(const word of para.split(/\s+/)){if(!word)continue;
+   let t=line?line+' '+word:word;if(ctx.measureText(t).width<=maxW){line=t;continue}
+   if(line)out.push(line);line=word;while(ctx.measureText(line).width>maxW){let k=line.length;while(k>1&&ctx.measureText(line.slice(0,k)).width>maxW)k--;out.push(line.slice(0,k));line=line.slice(k)}}
+  out.push(line)}return out};
+ const text=(t,x,sz,w,color,maxW,lh=1.35)=>{font(sz,w);ctx.fillStyle=color;const lines=wrap(t,maxW);for(const l of lines){ensure(sz*lh);ctx.fillText(l,x,y);y+=sz*lh}return lines.length};
+ newPage();
+ // Шапка
+ ctx.fillStyle=COL.accent;ctx.fillRect(M,y,64,8);y+=26;
+ text('АКТ ОСМОТРА КВАРТИРЫ',M,40,700,COL.ink,CW,1.2);
+ text('Перечень выявленных недостатков (дефектов)',M,24,400,COL.muted,CW);y+=22;
+ const meta=[['Объект',insp.object],['Квартира №',insp.apt],['Дата осмотра',fmtDate(insp.date)],['Собственник / участник ДДУ',insp.owner],['Представитель застройщика',insp.developer],['Специалист по приёмке',insp.inspector]];
+ for(const [k,v] of meta){const y0=y;font(22);ctx.fillStyle=COL.muted;ctx.fillText(k,M,y);text(v||'—',M+380,22,700,COL.ink,CW-380);y=Math.max(y,y0+30)+8;
+  ctx.fillStyle=COL.line;ctx.fillRect(M,y-4,CW,1)}
+ y+=24;
+ const c=counts(insp);
+ // Сводка
+ const bw=CW/4;ensure(110);const sy=y;
+ [['Всего',insp.defects.length,COL.ink],['Критичных',c.crit||0,COL.crit],['Значительных',c.major||0,COL.major],['Малозначит.',c.minor||0,COL.minor]].forEach(([l,v,col],i)=>{
+  const bx=M+i*bw;ctx.fillStyle=COL.band;ctx.fillRect(bx+(i?6:0),sy,bw-(i?6:0),96);ctx.fillStyle=col;ctx.fillRect(bx+(i?6:0),sy,6,96);
+  font(44,700);ctx.fillStyle=col;ctx.fillText(String(v),bx+(i?6:0)+24,sy+12);font(20);ctx.fillStyle=COL.muted;ctx.fillText(l,bx+(i?6:0)+24,sy+64)});
+ y=sy+96+40;
+ // Замечания
+ const PH_COLS=3,GAP=16,PW=(CW-60-GAP*(PH_COLS-1))/PH_COLS,PHH=Math.round(PW*0.75);
+ for(const g of grouped(insp)){
+  ensure(140);ctx.fillStyle=COL.ink;ctx.fillRect(M,y,CW,48);font(24,700);ctx.fillStyle='#fff';ctx.fillText(g.room,M+18,y+12);
+  font(20);const cnt=`${g.items.length} замеч.`;ctx.fillText(cnt,M+CW-18-ctx.measureText(cnt).width,y+14);y+=64;
+  for(const {n,d} of g.items){
+   ensure(110);const top=y;const col=COL[d.severity];
+   font(24,700);ctx.fillStyle=COL.ink;ctx.fillText(n+'.',M,y);
+   const tx=M+60,tw=CW-60;
+   font(19,700);const sev=SEVL[d.severity].toUpperCase();ctx.fillStyle=col;const sw=ctx.measureText(sev).width;
+   ctx.fillText(sev,tx,y+3);font(19);ctx.fillStyle=COL.muted;ctx.fillText('·  '+d.category,tx+sw+12,y+3);y+=34;
+   text(d.text||'—',tx,23,400,COL.ink,tw,1.4);
+   if(d.norm)text('Норматив: '+d.norm,tx,19,400,COL.muted,tw);
+   ctx.fillStyle=col;ctx.fillRect(M+40,top,5,Math.max(30,y-top-4));
+   if(d.photos.length){y+=10;
+    for(let i=0;i<d.photos.length;i+=PH_COLS){ensure(PHH+GAP);
+     for(let j=0;j<PH_COLS&&i+j<d.photos.length;j++){const p=await DB.photo(d.photos[i+j]);if(!p)continue;const bmp=await loadImage(await photoURL(p.id));
+      const bx=tx+j*(PW+GAP);ctx.fillStyle=COL.band;ctx.fillRect(bx,y,PW,PHH);const s=Math.min(PW/p.w,PHH/p.h);const iw=p.w*s,ih=p.h*s;ctx.drawImage(bmp,bx+(PW-iw)/2,y+(PHH-ih)/2,iw,ih)}
+     y+=PHH+GAP}}
+   y+=18;ctx.fillStyle=COL.line;ctx.fillRect(tx,y-10,tw,1);y+=10;
+  }
+  y+=10;
+ }
+ if(!insp.defects.length)text('Замечаний не выявлено.',M,24,400,COL.ink,CW);
+ // Заключение и подписи
+ y+=20;ensure(160);text('Заключение',M,28,700,COL.ink,CW);y+=6;
+ text(insp.conclusion||(insp.defects.length?'Выявленные недостатки подлежат устранению застройщиком. Квартира может быть принята после их устранения и повторного осмотра.':'Недостатков, препятствующих приёмке, не выявлено.'),M,23,400,COL.ink,CW,1.45);
+ y+=40;ensure(3*90);
+ for(const [k,v] of [['Специалист по приёмке',insp.inspector],['Собственник / участник ДДУ',insp.owner],['Представитель застройщика',insp.developer]]){
+  font(21);ctx.fillStyle=COL.muted;ctx.fillText(k,M,y+30);ctx.fillStyle=COL.ink;ctx.fillRect(M+400,y+56,330,2);font(21);ctx.fillText(v?`/ ${v} /`:'/                        /',M+760,y+30);y+=84}
+ // Колонтитулы
+ pages.forEach((pc,i)=>{const c2=pc.getContext('2d');c2.textBaseline='top';c2.font=`400 18px ${F}`;c2.fillStyle=COL.muted;
+  c2.fillText(`Акт осмотра · кв. ${insp.apt||'—'} · ${fmtDate(insp.date)}`,M,H-56);const s=`стр. ${i+1} из ${pages.length}`;c2.fillText(s,W-M-c2.measureText(s).width,H-56);
+  c2.fillStyle=COL.line;c2.fillRect(M,H-70,CW,1)});
+ // Сборка PDF
+ const jpgs=[];for(const pc of pages){const b=await new Promise(r=>pc.toBlob(r,'image/jpeg',0.88));jpgs.push(new Uint8Array(await b.arrayBuffer()));pc.width=pc.height=0}
+ return makePdf(jpgs,W,H);
+}
+function makePdf(jpgs,W,H){
+ const enc=new TextEncoder();const chunks=[];let len=0;const offs=[];
+ const put=d=>{const u=typeof d==='string'?enc.encode(d):d;chunks.push(u);len+=u.length};
+ const N=jpgs.length;const pw=595.28,ph=841.89;
+ put('%PDF-1.4\n');
+ const obj=(i,body)=>{offs[i]=len;put(`${i} 0 obj\n`);if(Array.isArray(body))body.forEach(put);else put(body);put('\nendobj\n')};
+ obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+ obj(2,`<< /Type /Pages /Count ${N} /Kids [${jpgs.map((_,i)=>`${3+i*3} 0 R`).join(' ')}] >>`);
+ jpgs.forEach((j,i)=>{const p=3+i*3;
+  obj(p,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im${i} ${p+2} 0 R >> >> /Contents ${p+1} 0 R >>`);
+  const cs=`q ${pw} 0 0 ${ph} 0 0 cm /Im${i} Do Q`;obj(p+1,`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`);
+  obj(p+2,[`<< /Type /XObject /Subtype /Image /Width ${W} /Height ${H} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${j.length} >>\nstream\n`,j,'\nendstream'])});
+ const total=3+N*3;const xref=len;
+ put(`xref\n0 ${total}\n0000000000 65535 f \n`+offs.slice(1).map(o=>String(o).padStart(10,'0')+' 00000 n \n').join(''));
+ put(`trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
+ return new Blob(chunks,{type:'application/pdf'});
+}
+
+/* ====================== Старт ====================== */
+if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+route();
+</script>
+</body>
+</html>
