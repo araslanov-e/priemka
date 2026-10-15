@@ -173,6 +173,19 @@ details[open] summary .chev{transform:rotate(180deg)}
 .qr-prev{display:flex;gap:14px;align-items:center}
 .qr-prev canvas{width:120px;height:120px;image-rendering:pixelated;border-radius:6px;flex:none;border:1px solid var(--line)}
 .qr-prev .note{padding:0}
+.auto-badge{font-size:12px;color:var(--muted);background:var(--sunk);border:1px solid var(--line);border-radius:99px;padding:2px 8px}
+.norm-input{min-height:56px}
+.norm-sug{display:grid;gap:6px}
+.norm-sug-h{font-size:12px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase;font-weight:650;margin-top:4px}
+.norm-opt{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:inherit}
+.norm-opt[aria-pressed="true"]{border-color:var(--ink);background:var(--sunk)}
+.norm-chk{width:22px;height:22px;flex:none;display:grid;place-items:center;border-radius:6px;border:1px solid var(--line);margin-top:1px}
+.norm-opt[aria-pressed="true"] .norm-chk{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.norm-chk svg{width:14px;height:14px}
+.norm-body{display:grid;gap:2px;min-width:0}
+.norm-body b{font-size:14px;font-weight:650}
+.norm-body span{font-size:13px;color:var(--muted)}
+.norm-body small{font-size:12.5px;color:var(--ink);opacity:.8}
 .check{display:flex;align-items:center;gap:12px;min-height:44px;cursor:pointer;font-size:15px}
 .check input{width:22px;height:22px;margin:0;accent-color:var(--ink);flex:none}
 .custom-room .input{flex:1;min-width:0}
@@ -189,10 +202,11 @@ details[open] summary .chev{transform:rotate(180deg)}
 <input type="file" id="gal" accept="image/*" multiple hidden>
 <input type="file" id="logoFile" accept="image/*" hidden>
 <script src="vendor/qrcode.min.js"></script>
+<script src="norms.js"></script>
 <script>
 'use strict';
 // Версию не меняйте вручную — используйте ./bump-version.sh <версия>
-const APP_VERSION='0.0.5';
+const APP_VERSION='0.0.6';
 /* ====================== Справочники ====================== */
 const ROOMS=['Прихожая','Коридор','Кухня','Гостиная','Комната 1','Комната 2','Комната 3','Санузел','Ванная','Туалет','Балкон / лоджия','Гардероб','Общее по квартире'];
 const CATS=['Стены','Потолок','Пол','Окна','Двери','Сантехника','Электрика','Отопление и вентиляция','Отделка','Прочее'];
@@ -376,12 +390,26 @@ async function viewInspection(id){
 async function viewDefect(id,did){
  const insp=await DB.get(id);if(!insp)return go('/');
  let d=insp.defects.find(x=>x.id===did);const isNew=!d;
- if(!d){d={id:did,room:pref.get('room',ROOMS[0]),category:pref.get('cat',CATS[0]),severity:'major',text:'',norm:'',photos:[],created:Date.now()};insp.defects.push(d)}
+ if(!d){d={id:did,room:pref.get('room',ROOMS[0]),category:pref.get('cat',CATS[0]),severity:'major',text:'',norm:'',normAuto:true,photos:[],created:Date.now()};insp.defects.push(d)}
+ if(d.normAuto===undefined)d.normAuto=!d.norm; // старые замечания: заполненный вручную норматив не трогаем
+ const T=await getTpl();const normSource=T.normSource||'both',normAutoOn=T.normAuto!==false;
  const back=`/i/${id}`;
  setBar(isNew?'Новое замечание':'Замечание',back,`<button class="icon-btn" id="del" aria-label="Удалить замечание">${ICON.trash}</button>`);
  const save=debounce(()=>DB.put(insp),300);
  leaving=()=>save.flush();
  const app=$('#app');
+ const splitNorm=v=>String(v||'').split(/\s*;\s*/).map(x=>x.trim()).filter(Boolean);
+ // Подбор норматива по описанию и конструктиву. fill=false — только обновить подсказки, поле не трогать
+ const updateNorms=(fill=true)=>{const box=$('#normSug');if(!box)return;
+  const rules=typeof matchNorms==='function'?matchNorms(d.text,d.category).slice(0,4):[];
+  if(fill&&normAutoOn&&d.normAuto!==false){const best=rules[0]?ruleRefs(rules[0],normSource).map(normRefText).join('; '):'';
+   if(best!==d.norm){d.norm=best;$('#norm').value=best;save()}}
+  $('#normBadge').hidden=!(normAutoOn&&d.normAuto!==false&&d.norm);
+  const parts=splitNorm(d.norm);
+  box.innerHTML=rules.length?`<span class="norm-sug-h">Подходящие нормативы</span>`+rules.map(r=>{const refs=ruleRefs(r,normSource);const txt=refs.map(normRefText);const on=txt.every(t=>parts.includes(t));
+   const hint=refs.find(x=>x.hint)?.hint;
+   return `<button class="norm-opt" data-ref="${esc(JSON.stringify(txt))}" aria-pressed="${on}"><span class="norm-chk">${on?ICON.check:ICON.plus}</span><span class="norm-body"><b>${esc(r.title)}</b><span>${esc(refs.map(x=>NORM_DOCS[x.doc].short+(x.ref?', '+x.ref:'')).join(' · '))}</span>${hint?`<small>${esc(hint)}</small>`:''}</span></button>`}).join('')
+   :(d.text.trim()?'<span class="norm-sug-h">Норматив не найден — впишите вручную</span>':'')};
  const render=()=>{app.innerHTML=`
  <div class="field"><div class="flabel-row"><span class="flabel">Помещение</span><button class="link-btn" id="order">${ICON.sort}Порядок</button></div>
   <div class="chips" id="rooms">${roomOrder(insp).map(r=>`<button class="chip" aria-pressed="${r===d.room}" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>
@@ -397,7 +425,10 @@ async function viewDefect(id,did){
   <div class="phrases" id="phrases">${(PHRASES[d.category]||[]).map(p=>`<button class="phrase">${esc(p)}</button>`).join('')}</div>
   <textarea class="input" id="text" rows="4" placeholder="Что не так, где именно, замеры">${esc(d.text)}</textarea>
  </div>
- <div class="field"><label for="norm">Норматив (необязательно)</label><input class="input" id="norm" value="${esc(d.norm)}" placeholder="СП 71.13330.2017, табл. 7.4"></div>
+ <div class="field"><div class="flabel-row"><label class="flabel" for="norm">Норматив</label><span class="auto-badge" id="normBadge" hidden>подобран автоматически</span></div>
+  <textarea class="input norm-input" id="norm" rows="2" placeholder="${normAutoOn?'Подберётся по описанию дефекта':'Например: ГОСТ Р 72509-2026, табл. 5.1'}">${esc(d.norm)}</textarea>
+  <div class="norm-sug" id="normSug"></div>
+ </div>
  <div class="field"><span class="flabel">Фото · ${d.photos.length}</span>
   <div class="photos" id="photos">
    ${d.photos.map(p=>`<div class="photo"><img data-pid="${p}" alt="Фото дефекта" data-view="${p}"><button class="del" data-rm="${p}" aria-label="Удалить фото">×</button></div>`).join('')}
@@ -409,12 +440,17 @@ async function viewDefect(id,did){
  const bind=()=>{
   const pick=(sel,key,after)=>app.querySelectorAll(sel+' [data-v]').forEach(b=>b.onclick=()=>{d[key]=b.dataset.v;app.querySelectorAll(sel+' [data-v]').forEach(x=>x.setAttribute('aria-pressed',x===b));after&&after();save()});
   pick('#rooms','room',()=>pref.set('room',d.room));
-  pick('#cats','category',()=>{pref.set('cat',d.category);$('#phrases').innerHTML=(PHRASES[d.category]||[]).map(p=>`<button class="phrase">${esc(p)}</button>`).join('');bindPhrases()});
+  pick('#cats','category',()=>{pref.set('cat',d.category);updateNorms();$('#phrases').innerHTML=(PHRASES[d.category]||[]).map(p=>`<button class="phrase">${esc(p)}</button>`).join('');bindPhrases()});
   pick('#sev','severity');
-  const bindPhrases=()=>app.querySelectorAll('.phrase').forEach(b=>b.onclick=()=>{const t=$('#text');t.value=t.value.trim()?t.value.trim()+'. '+b.textContent:b.textContent;d.text=t.value;t.focus();save()});
+  const bindPhrases=()=>app.querySelectorAll('.phrase').forEach(b=>b.onclick=()=>{const t=$('#text');t.value=t.value.trim()?t.value.trim()+'. '+b.textContent:b.textContent;d.text=t.value;t.focus();save();updateNorms()});
   bindPhrases();
-  $('#text').oninput=e=>{d.text=e.target.value;save()};
-  $('#norm').oninput=e=>{d.norm=e.target.value;save()};
+  $('#text').oninput=e=>{d.text=e.target.value;save();updateNorms()};
+  $('#norm').oninput=e=>{d.norm=e.target.value;d.normAuto=d.norm.trim()==='';save();updateNorms(false)};
+  $('#normSug').onclick=e=>{const b=e.target.closest('[data-ref]');if(!b)return;const refs=JSON.parse(b.dataset.ref);
+   let parts=splitNorm(d.norm);const has=refs.every(r=>parts.includes(r));
+   parts=has?parts.filter(p=>!refs.includes(p)):[...parts,...refs.filter(r=>!parts.includes(r))];
+   d.norm=parts.join('; ');d.normAuto=false;$('#norm').value=d.norm;save();updateNorms(false)};
+  updateNorms();
   $('#addRoom').onclick=()=>{const v=$('#customRoom').value.trim();if(!v)return;const order=roomOrder(insp);if(!order.includes(v)){order.push(v);insp.rooms=order}
    d.room=v;pref.set('room',v);save();render();
    // сразу предложить поставить новое помещение на место
@@ -527,7 +563,7 @@ function download(blob,name){const u=URL.createObjectURL(blob);const a=document.
 
 /* ====================== Шаблон акта ====================== */
 const DEFAULT_TPL={id:'template',company:'',phone:'',email:'',site:'',address:'',logo:null,
- qrMode:'off',qrText:'',qrCaption:'Наши контакты',
+ qrMode:'off',qrText:'',qrCaption:'Наши контакты',normAuto:true,normSource:'both',
  title:'Акт осмотра квартиры',subtitle:'Перечень выявленных недостатков (дефектов)',
  conclusionDefects:'Выявленные недостатки подлежат устранению застройщиком. Квартира может быть принята после их устранения и повторного осмотра.',
  conclusionClean:'Недостатков, препятствующих приёмке, не выявлено.'};
@@ -593,6 +629,13 @@ async function viewSettings(){
    <div class="qr-prev"><canvas id="qrPrev" width="1" height="1"></canvas><p id="qrNote" class="note"></p></div>
   </div>
  </div>
+ <div class="section-label">Нормативы</div>
+ <div class="card pad qr-card">
+  <label class="check" for="t-normAuto"><input type="checkbox" id="t-normAuto" ${t.normAuto!==false?'checked':''}><span>Подбирать норматив по описанию дефекта</span></label>
+  <span class="flabel">Отделка: на что ссылаться</span>
+  <div class="chips" id="normSrc">${[['both','Приказ 91/пр и ГОСТ Р 72509'],['PR91','Приказ № 91/пр'],['G72509','ГОСТ Р 72509-2026']].map(([v,l])=>`<button class="chip" data-v="${v}" aria-pressed="${(t.normSource||'both')===v}">${l}</button>`).join('')}</div>
+  <p class="note" style="padding:0">Приказ Минстроя № 91/пр — обязательный минимум по отделке для ДДУ. ГОСТ Р 72509-2026 — стандарт отделочных работ с классами качества. Для окон, дверей и инженерных систем — профильные ГОСТ и СП.</p>
+ </div>
  <div class="section-label">Текст акта</div>
  <div class="card fields pad">
   ${inp('title','Заголовок',DEFAULT_TPL.title)}
@@ -614,13 +657,15 @@ async function viewSettings(){
   catch(e){cv.hidden=true;note.textContent='Слишком длинный текст для QR'}};
  document.querySelectorAll('[data-t]').forEach(el=>el.addEventListener('input',()=>{t[el.dataset.t]=el.value;save();drawQR()}));
  document.querySelectorAll('#qrMode [data-v]').forEach(b=>b.onclick=()=>{t.qrMode=b.dataset.v;document.querySelectorAll('#qrMode [data-v]').forEach(x=>x.setAttribute('aria-pressed',x===b));save();drawQR()});
+ $('#t-normAuto').onchange=e=>{t.normAuto=e.target.checked;save()};
+ document.querySelectorAll('#normSrc [data-v]').forEach(b=>b.onclick=()=>{t.normSource=b.dataset.v;document.querySelectorAll('#normSrc [data-v]').forEach(x=>x.setAttribute('aria-pressed',x===b));save()});
  $('#logoPick').onclick=()=>{$('#logoFile').value='';$('#logoFile').click()};
  $('#logoFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{t.logo=await prepareLogo(f);await saveTpl(t);drawLogo();toast('Логотип добавлен')}catch(err){toast('Не удалось открыть картинку')}};
  $('#logoDel').onclick=async()=>{t.logo=null;await saveTpl(t);drawLogo()};
  drawLogo();drawQR();
  setActions(`<button class="btn" id="sample">${ICON.doc}Пример PDF</button><button class="btn" id="sampleDocx">${ICON.doc}Пример Word</button>`);
  const sample=()=>({id:'sample',date:today(),object:'ЖК «Пример», ул. Строителей, 1, корп. 2',apt:'25',owner:'Иванов Иван Иванович',inspector:pref.get('inspector')||'Специалист',withDeveloper:false,conclusion:'',rooms:null,
-  defects:[{id:'s1',room:'Кухня',category:'Стены',severity:'major',text:'Отклонение от вертикали 6 мм на 1 м у оконного проёма',norm:'СП 71.13330.2017, табл. 7.4',photos:[]},
+  defects:[{id:'s1',room:'Кухня',category:'Стены',severity:'major',text:'Отклонение от вертикали 6 мм на 1 м у оконного проёма',norm:'Приказ Минстроя России от 19.02.2025 № 91/пр, прил., п. 1; ГОСТ Р 72509-2026, табл. 5.1',photos:[]},
    {id:'s2',room:'Санузел',category:'Сантехника',severity:'crit',text:'Протечка в соединении под раковиной',norm:'',photos:[]},
    {id:'s3',room:'Комната 1',category:'Окна',severity:'minor',text:'Царапина на стеклопакете, правая створка',norm:'',photos:[]}]});
  const make=async(kind,b)=>{await save.flush();const old=b.innerHTML;b.disabled=true;b.textContent='Формирую…';
