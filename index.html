@@ -134,6 +134,33 @@ details[open] summary .chev{transform:rotate(180deg)}
 .export-btns .btn{min-height:44px;font-size:14px}
 .note{font-size:14px;color:var(--muted);padding:0 2px}
 .custom-room{display:flex;gap:8px}
+.list-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:-8px}
+.list-head .section-label{margin:4px 2px}
+.flabel-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.link-btn{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:var(--ink);font-size:14px;font-weight:600;padding:8px 4px;min-height:40px;text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:4px}
+.link-btn svg{width:18px;height:18px}
+.sheet-wrap{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;justify-content:flex-end}
+.sheet-backdrop{position:absolute;inset:0;background:rgba(10,15,18,.5)}
+.sheet{position:relative;background:var(--surface);border-radius:16px 16px 0 0;max-height:88vh;display:flex;flex-direction:column;
+  padding:8px max(16px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));width:100%;max-width:720px;margin:0 auto}
+.sheet::before{content:"";width:40px;height:4px;border-radius:2px;background:var(--line);margin:4px auto 8px}
+.sheet-head h2{margin:0;font-size:18px}
+.sheet-head p{margin:4px 0 10px;color:var(--muted);font-size:14px}
+.inline-grip{width:16px;height:16px;vertical-align:-3px}
+.room-list{list-style:none;margin:0;padding:0;overflow-y:auto;flex:1;min-height:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);overscroll-behavior:contain}
+.room-item{display:flex;align-items:center;gap:4px;padding:4px 0;border-bottom:1px solid var(--line);background:var(--surface)}
+.room-item:last-child{border-bottom:0}
+.room-item.hl{background:color-mix(in srgb,var(--accent) 22%,var(--surface))}
+.room-item.dragging{background:var(--sunk);box-shadow:0 4px 14px rgba(0,0,0,.18);position:relative;z-index:1}
+.grip{width:40px;height:44px;display:grid;place-items:center;color:var(--muted);touch-action:none;cursor:grab;flex:none}
+.grip svg{width:22px;height:22px}
+.room-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.icon-btn.sm{width:40px;height:40px;color:var(--ink)}
+.icon-btn.sm svg{width:20px;height:20px}
+.icon-btn.sm:disabled{opacity:.25}
+.icon-btn.sm.rm{color:var(--crit)}
+.icon-btn.sm.rm:disabled{color:var(--muted)}
+.sheet-foot{display:grid;gap:10px;padding-top:12px}
 .check{display:flex;align-items:center;gap:12px;min-height:44px;cursor:pointer;font-size:15px}
 .check input{width:22px;height:22px;margin:0;accent-color:var(--ink);flex:none}
 .custom-room .input{flex:1;min-width:0}
@@ -151,7 +178,7 @@ details[open] summary .chev{transform:rotate(180deg)}
 <script>
 'use strict';
 // Версию не меняйте вручную — используйте ./bump-version.sh <версия>
-const APP_VERSION='0.0.3';
+const APP_VERSION='0.0.4';
 /* ====================== Справочники ====================== */
 const ROOMS=['Прихожая','Коридор','Кухня','Гостиная','Комната 1','Комната 2','Комната 3','Санузел','Ванная','Туалет','Балкон / лоджия','Гардероб','Общее по квартире'];
 const CATS=['Стены','Потолок','Пол','Окна','Двери','Сантехника','Электрика','Отопление и вентиляция','Отделка','Прочее'];
@@ -178,6 +205,10 @@ const ICON={
  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"/></svg>',
  share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 14v6h14v-6"/></svg>',
+ sort:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg>',
+ grip:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
+ up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
+ down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
  save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
 };
 
@@ -225,7 +256,8 @@ async function compressPhoto(file){
 
 /* ====================== Модель ====================== */
 function newInspection(){return {id:uid(),created:Date.now(),updated:Date.now(),date:today(),object:'',apt:'',owner:'',withDeveloper:false,developer:'',inspector:pref.get('inspector'),conclusion:'',defects:[]}}
-function roomOrder(insp){const extra=[];for(const d of insp.defects)if(!ROOMS.includes(d.room)&&!extra.includes(d.room))extra.push(d.room);return [...ROOMS,...extra]}
+// Порядок помещений хранится в осмотре (insp.rooms); помещения из замечаний, которых нет в списке, добавляются в конец
+function roomOrder(insp){const base=[...(insp.rooms||ROOMS)];for(const d of insp.defects)if(d.room&&!base.includes(d.room))base.push(d.room);return base}
 function grouped(insp){const order=roomOrder(insp);const g=[];let n=0;
  for(const r of order){const items=insp.defects.filter(d=>d.room===r);if(!items.length)continue;g.push({room:r,items:items.map(d=>({n:++n,d}))})}return g}
 function counts(insp){const c={crit:0,major:0,minor:0};for(const d of insp.defects)c[d.severity]=(c[d.severity]||0)+1;return c}
@@ -298,7 +330,7 @@ async function viewInspection(id){
    <div class="field"><label for="f-conclusion">Заключение (в конце акта)</label><textarea class="input" id="f-conclusion" data-f="conclusion" placeholder="Квартира не может быть принята до устранения замечаний, указанных в акте.">${esc(insp.conclusion)}</textarea></div>
   </div>
  </details>
- <div class="section-label">Замечания · ${insp.defects.length}</div>
+ <div class="list-head"><div class="section-label">Замечания · ${insp.defects.length}</div><button class="link-btn" id="order">${ICON.sort}Порядок помещений</button></div>
  ${g.length?g.map(gr=>`<div class="room-h">${esc(gr.room)}<span>${gr.items.length}</span></div><div class="list">${gr.items.map(({n,d})=>`
   <button class="defect ${d.severity}" data-d="${d.id}">
    <span class="defect-n">${n}.</span>
@@ -309,6 +341,7 @@ async function viewInspection(id){
  const save=debounce(()=>DB.put(insp),400);
  app.querySelectorAll('[data-f]').forEach(el=>el.addEventListener('input',()=>{insp[el.dataset.f]=el.value;if(el.dataset.f==='inspector')pref.set('inspector',el.value);
   if(el.dataset.f==='apt')$('#bar h1').textContent=el.value?'Кв. '+el.value:'Новый осмотр';save()}));
+ $('#order').onclick=()=>openRoomSheet(insp,{onDone:()=>viewInspection(id)});
  $('#f-withdev').onchange=e=>{insp.withDeveloper=e.target.checked;$('#devField').hidden=!e.target.checked;if(e.target.checked)$('#f-developer').focus();save()};
  leaving=()=>save.flush();
  app.querySelectorAll('.defect').forEach(b=>b.onclick=()=>go(`/i/${id}/d/${b.dataset.d}`));
@@ -331,11 +364,10 @@ async function viewDefect(id,did){
  setBar(isNew?'Новое замечание':'Замечание',back,`<button class="icon-btn" id="del" aria-label="Удалить замечание">${ICON.trash}</button>`);
  const save=debounce(()=>DB.put(insp),300);
  leaving=()=>save.flush();
- const roomsList=roomOrder(insp).includes(d.room)?roomOrder(insp):[...roomOrder(insp),d.room];
  const app=$('#app');
  const render=()=>{app.innerHTML=`
- <div class="field"><span class="flabel">Помещение</span>
-  <div class="chips" id="rooms">${roomsList.map(r=>`<button class="chip" aria-pressed="${r===d.room}" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>
+ <div class="field"><div class="flabel-row"><span class="flabel">Помещение</span><button class="link-btn" id="order">${ICON.sort}Порядок</button></div>
+  <div class="chips" id="rooms">${roomOrder(insp).map(r=>`<button class="chip" aria-pressed="${r===d.room}" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div>
   <div class="custom-room"><input class="input" id="customRoom" placeholder="Другое помещение…"><button class="btn" id="addRoom" style="flex:none">Добавить</button></div>
  </div>
  <div class="field"><span class="flabel">Конструктив</span>
@@ -366,7 +398,11 @@ async function viewDefect(id,did){
   bindPhrases();
   $('#text').oninput=e=>{d.text=e.target.value;save()};
   $('#norm').oninput=e=>{d.norm=e.target.value;save()};
-  $('#addRoom').onclick=()=>{const v=$('#customRoom').value.trim();if(!v)return;if(!roomsList.includes(v))roomsList.push(v);d.room=v;pref.set('room',v);save();render()};
+  $('#addRoom').onclick=()=>{const v=$('#customRoom').value.trim();if(!v)return;const order=roomOrder(insp);if(!order.includes(v)){order.push(v);insp.rooms=order}
+   d.room=v;pref.set('room',v);save();render();
+   // сразу предложить поставить новое помещение на место
+   openRoomSheet(insp,{highlight:v,onDone:render})};
+  $('#order').onclick=()=>openRoomSheet(insp,{onDone:render});
   $('#shoot').onclick=()=>{$('#cam').value='';$('#cam').click()};
   $('#pick').onclick=()=>{$('#gal').value='';$('#gal').click()};
   app.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async e=>{e.stopPropagation();const p=b.dataset.rm;d.photos=d.photos.filter(x=>x!==p);await DB.delPhoto(p);await DB.put(insp);render()});
@@ -381,6 +417,60 @@ async function viewDefect(id,did){
  setActions(`<button class="btn" id="next">${ICON.plus}Ещё</button><button class="btn primary" id="done" style="flex:1.6">${ICON.check}Готово</button>`);
  $('#done').onclick=()=>go(back);
  $('#next').onclick=async()=>{await save.flush();leaving=null;go(`/i/${id}/d/${uid()}`)};
+}
+/* ====================== Порядок помещений (нижняя панель) ====================== */
+function openRoomSheet(insp,{highlight=null,onDone}={}){
+ let order=roomOrder(insp);
+ const cnt=r=>insp.defects.filter(d=>d.room===r&&!isEmptyDefect(d)).length;
+ const used=r=>insp.defects.some(d=>d.room===r);
+ const wrap=document.createElement('div');wrap.className='sheet-wrap';
+ wrap.innerHTML=`<div class="sheet-backdrop"></div>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+   <div class="sheet-head"><h2 id="sheetTitle">Порядок помещений</h2><p>Перетащите за ${ICON.grip.replace('<svg','<svg class="inline-grip"')} или двигайте стрелками. В этом порядке помещения идут в списке и в акте.</p></div>
+   <ul class="room-list" id="roomList"></ul>
+   <div class="sheet-foot">
+    <div class="custom-room"><input class="input" id="sheetNewRoom" placeholder="Новое помещение…"><button class="btn" id="sheetAdd" style="flex:none">Добавить</button></div>
+    <button class="btn primary" id="sheetDone">${ICON.check}Готово</button>
+   </div>
+  </div>`;
+ document.body.appendChild(wrap);document.body.style.overflow='hidden';
+ const ul=wrap.querySelector('#roomList');
+ const draw=(focusSel)=>{const top=ul.scrollTop;
+  ul.innerHTML=order.map((r,i)=>{const c=cnt(r);return `<li class="room-item${r===highlight?' hl':''}" data-room="${esc(r)}">
+   <span class="grip" aria-hidden="true">${ICON.grip}</span>
+   <span class="room-name">${esc(r)}</span>${c?`<span class="pill">${c}</span>`:''}
+   <button class="icon-btn sm" data-mv="-1" aria-label="Выше: ${esc(r)}" ${i===0?'disabled':''}>${ICON.up}</button>
+   <button class="icon-btn sm" data-mv="1" aria-label="Ниже: ${esc(r)}" ${i===order.length-1?'disabled':''}>${ICON.down}</button>
+   <button class="icon-btn sm rm" data-rm aria-label="Убрать: ${esc(r)}" ${used(r)?'disabled title="Есть замечания"':''}>${ICON.trash}</button></li>`}).join('');
+  ul.scrollTop=top;
+  if(focusSel){const el=ul.querySelector(focusSel);el&&el.focus()}};
+ const idx=li=>order.indexOf(li.dataset.room);
+ ul.addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const li=b.closest('li');const i=idx(li);
+  if(b.dataset.mv){const j=i+ +b.dataset.mv;[order[i],order[j]]=[order[j],order[i]];draw(`li:nth-child(${j+1}) [data-mv="${b.dataset.mv}"]:not([disabled])`)}
+  else if(b.hasAttribute('data-rm')){order.splice(i,1);draw()}});
+ // перетаскивание за ручку (палец или мышь)
+ ul.addEventListener('pointerdown',e=>{const h=e.target.closest('.grip');if(!h)return;e.preventDefault();
+  const li=h.closest('li');li.classList.add('dragging');const pid=e.pointerId;
+  let y=e.clientY,raf=0,done=false;
+  const place=()=>{const after=[...ul.children].find(it=>it!==li&&y<it.getBoundingClientRect().top+it.offsetHeight/2);
+   if(after){if(li.nextElementSibling!==after)ul.insertBefore(li,after)}else if(ul.lastElementChild!==li)ul.appendChild(li)};
+  // автопрокрутка, пока палец у верхнего или нижнего края списка
+  const tick=()=>{const r=ul.getBoundingClientRect(),edge=56;let d=0;
+   if(y<r.top+edge)d=-Math.ceil((r.top+edge-y)/6);else if(y>r.bottom-edge)d=Math.ceil((y-r.bottom+edge)/6);
+   if(d){ul.scrollTop+=Math.max(-20,Math.min(20,d));place()}raf=requestAnimationFrame(tick)};
+  raf=requestAnimationFrame(tick);
+  const move=ev=>{if(ev.pointerId!==pid)return;ev.preventDefault();y=ev.clientY;place()};
+  const end=()=>{if(done)return;done=true;cancelAnimationFrame(raf);
+   window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);window.removeEventListener('pointercancel',end);
+   order=[...ul.children].map(x=>x.dataset.room);draw()};
+  // слушаем окно: при перестановке строки браузер теряет привязку пальца к ручке
+  window.addEventListener('pointermove',move,{passive:false});window.addEventListener('pointerup',end);window.addEventListener('pointercancel',end)});
+ wrap.querySelector('#sheetAdd').onclick=()=>{const inp=wrap.querySelector('#sheetNewRoom');const v=inp.value.trim();if(!v)return;
+  if(!order.includes(v))order.push(v);highlight=v;inp.value='';draw();ul.querySelector('li.hl')?.scrollIntoView({block:'nearest'})};
+ const close=async()=>{insp.rooms=order;await DB.put(insp);wrap.remove();document.body.style.overflow='';onDone&&onDone()};
+ wrap.querySelector('#sheetDone').onclick=close;wrap.querySelector('.sheet-backdrop').onclick=close;
+ draw();
+ if(highlight)requestAnimationFrame(()=>ul.querySelector('li.hl')?.scrollIntoView({block:'center'}));
 }
 async function viewPhoto(pid){const u=await photoURL(pid);const v=document.createElement('div');v.className='viewer';v.innerHTML=`<img src="${u}" alt="Фото">`;v.onclick=()=>v.remove();document.body.appendChild(v)}
 
