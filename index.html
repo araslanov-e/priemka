@@ -134,6 +134,8 @@ details[open] summary .chev{transform:rotate(180deg)}
 .export-btns .btn{min-height:44px;font-size:14px}
 .note{font-size:14px;color:var(--muted);padding:0 2px}
 .custom-room{display:flex;gap:8px}
+.check{display:flex;align-items:center;gap:12px;min-height:44px;cursor:pointer;font-size:15px}
+.check input{width:22px;height:22px;margin:0;accent-color:var(--ink);flex:none}
 .custom-room .input{flex:1;min-width:0}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -149,7 +151,7 @@ details[open] summary .chev{transform:rotate(180deg)}
 <script>
 'use strict';
 // Версию не меняйте вручную — используйте ./bump-version.sh <версия>
-const APP_VERSION='0.0.2';
+const APP_VERSION='0.0.3';
 /* ====================== Справочники ====================== */
 const ROOMS=['Прихожая','Коридор','Кухня','Гостиная','Комната 1','Комната 2','Комната 3','Санузел','Ванная','Туалет','Балкон / лоджия','Гардероб','Общее по квартире'];
 const CATS=['Стены','Потолок','Пол','Окна','Двери','Сантехника','Электрика','Отопление и вентиляция','Отделка','Прочее'];
@@ -222,11 +224,12 @@ async function compressPhoto(file){
 }
 
 /* ====================== Модель ====================== */
-function newInspection(){return {id:uid(),created:Date.now(),updated:Date.now(),date:today(),object:'',apt:'',owner:'',developer:'',inspector:pref.get('inspector'),conclusion:'',defects:[]}}
+function newInspection(){return {id:uid(),created:Date.now(),updated:Date.now(),date:today(),object:'',apt:'',owner:'',withDeveloper:false,developer:'',inspector:pref.get('inspector'),conclusion:'',defects:[]}}
 function roomOrder(insp){const extra=[];for(const d of insp.defects)if(!ROOMS.includes(d.room)&&!extra.includes(d.room))extra.push(d.room);return [...ROOMS,...extra]}
 function grouped(insp){const order=roomOrder(insp);const g=[];let n=0;
  for(const r of order){const items=insp.defects.filter(d=>d.room===r);if(!items.length)continue;g.push({room:r,items:items.map(d=>({n:++n,d}))})}return g}
 function counts(insp){const c={crit:0,major:0,minor:0};for(const d of insp.defects)c[d.severity]=(c[d.severity]||0)+1;return c}
+const hasDev=i=>i.withDeveloper??!!i.developer; // старые осмотры: поле включено, если заполнено
 const isEmptyDefect=d=>!d.text.trim()&&!d.photos.length;
 
 /* ====================== Каркас ====================== */
@@ -289,7 +292,8 @@ async function viewInspection(id){
     <div class="field"><label for="f-date">Дата осмотра</label><input class="input" id="f-date" type="date" data-f="date" value="${esc(insp.date)}"></div>
    </div>
    <div class="field"><label for="f-owner">Собственник / участник ДДУ</label><input class="input" id="f-owner" data-f="owner" value="${esc(insp.owner)}" autocomplete="off"></div>
-   <div class="field"><label for="f-developer">Представитель застройщика</label><input class="input" id="f-developer" data-f="developer" value="${esc(insp.developer)}" autocomplete="off"></div>
+   <label class="check" for="f-withdev"><input type="checkbox" id="f-withdev" ${hasDev(insp)?'checked':''}><span>Присутствует представитель застройщика</span></label>
+   <div class="field" id="devField" ${hasDev(insp)?'':'hidden'}><label for="f-developer">Представитель застройщика</label><input class="input" id="f-developer" data-f="developer" value="${esc(insp.developer)}" autocomplete="off"></div>
    <div class="field"><label for="f-inspector">Специалист по приёмке</label><input class="input" id="f-inspector" data-f="inspector" value="${esc(insp.inspector)}" autocomplete="name"></div>
    <div class="field"><label for="f-conclusion">Заключение (в конце акта)</label><textarea class="input" id="f-conclusion" data-f="conclusion" placeholder="Квартира не может быть принята до устранения замечаний, указанных в акте.">${esc(insp.conclusion)}</textarea></div>
   </div>
@@ -305,6 +309,7 @@ async function viewInspection(id){
  const save=debounce(()=>DB.put(insp),400);
  app.querySelectorAll('[data-f]').forEach(el=>el.addEventListener('input',()=>{insp[el.dataset.f]=el.value;if(el.dataset.f==='inspector')pref.set('inspector',el.value);
   if(el.dataset.f==='apt')$('#bar h1').textContent=el.value?'Кв. '+el.value:'Новый осмотр';save()}));
+ $('#f-withdev').onchange=e=>{insp.withDeveloper=e.target.checked;$('#devField').hidden=!e.target.checked;if(e.target.checked)$('#f-developer').focus();save()};
  leaving=()=>save.flush();
  app.querySelectorAll('.defect').forEach(b=>b.onclick=()=>go(`/i/${id}/d/${b.dataset.d}`));
  $('#del').onclick=()=>{const c=$('#confirm');c.hidden=false;c.className='card confirm';
@@ -443,7 +448,7 @@ async function buildDocx(insp){
  let body='';
  body+=P(run('Акт осмотра квартиры',{b:true,sz:32}),{jc:'center',after:40});
  body+=P(run('Перечень выявленных недостатков (дефектов)',{sz:22,color:'5F6B73'}),{jc:'center',after:240});
- const meta=[['Объект',insp.object],['Квартира №',insp.apt],['Дата осмотра',fmtDate(insp.date)],['Собственник / участник ДДУ',insp.owner],['Представитель застройщика',insp.developer],['Специалист по приёмке',insp.inspector]];
+ const meta=[['Объект',insp.object],['Квартира №',insp.apt],['Дата осмотра',fmtDate(insp.date)],['Собственник / участник ДДУ',insp.owner],...(hasDev(insp)?[['Представитель застройщика',insp.developer]]:[]),['Специалист по приёмке',insp.inspector]];
  body+=tbl([3000,6638],meta.map(([k,v])=>`<w:tr>${cell(3000,P(run(k,{color:'5F6B73'}),{after:0}))}${cell(6638,P(run(v||'—',{b:true}),{after:0}))}</w:tr>`),false);
  body+=P(run(`Всего замечаний: ${insp.defects.length}. `,{b:true})+run(`Критичных — ${c.crit||0}, значительных — ${c.major||0}, малозначительных — ${c.minor||0}.`),{before:200,after:200});
  const cols=[560,4878,1800,2400];
@@ -460,7 +465,7 @@ async function buildDocx(insp){
  if(insp.defects.length)body+=tbl(cols,rows);else body+=P(run('Замечаний не выявлено.'));
  body+=P(run('Заключение',{b:true,sz:24}),{before:320,after:80,keep:true});
  body+=P(run(insp.conclusion||(insp.defects.length?'Выявленные недостатки подлежат устранению застройщиком. Квартира может быть принята после их устранения и повторного осмотра.':'Недостатков, препятствующих приёмке, не выявлено.')),{after:360});
- const sig=[['Специалист по приёмке',insp.inspector],['Собственник / участник ДДУ',insp.owner],['Представитель застройщика',insp.developer]];
+ const sig=[['Специалист по приёмке',insp.inspector],['Собственник / участник ДДУ',insp.owner],...(hasDev(insp)?[['Представитель застройщика',insp.developer]]:[])];
  body+=tbl([3600,3200,2838],sig.map(([k,v])=>`<w:tr>${cell(3600,P(run(k,{color:'5F6B73'}),{before:240,after:0}))}${cell(3200,P(run('______________________'),{before:240,after:0}))}${cell(2838,P(run(v?`/ ${v} /`:'/                    /'),{before:240,after:0}))}</w:tr>`),false);
  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${body}<w:sectPr><w:footerReference w:type="default" r:id="rIdFtr"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
  const footer=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="right"/></w:pPr>${run(`Акт осмотра · кв. ${insp.apt||'—'} · стр. `,{sz:16,color:'8A949A'})}<w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`;
@@ -492,7 +497,7 @@ async function buildPdf(insp){
  ctx.fillStyle=COL.accent;ctx.fillRect(M,y,64,8);y+=26;
  text('АКТ ОСМОТРА КВАРТИРЫ',M,40,700,COL.ink,CW,1.2);
  text('Перечень выявленных недостатков (дефектов)',M,24,400,COL.muted,CW);y+=22;
- const meta=[['Объект',insp.object],['Квартира №',insp.apt],['Дата осмотра',fmtDate(insp.date)],['Собственник / участник ДДУ',insp.owner],['Представитель застройщика',insp.developer],['Специалист по приёмке',insp.inspector]];
+ const meta=[['Объект',insp.object],['Квартира №',insp.apt],['Дата осмотра',fmtDate(insp.date)],['Собственник / участник ДДУ',insp.owner],...(hasDev(insp)?[['Представитель застройщика',insp.developer]]:[]),['Специалист по приёмке',insp.inspector]];
  for(const [k,v] of meta){const y0=y;font(22);ctx.fillStyle=COL.muted;ctx.fillText(k,M,y);text(v||'—',M+380,22,700,COL.ink,CW-380);y=Math.max(y,y0+30)+8;
   ctx.fillStyle=COL.line;ctx.fillRect(M,y-4,CW,1)}
  y+=24;
@@ -531,7 +536,7 @@ async function buildPdf(insp){
  y+=20;ensure(160);text('Заключение',M,28,700,COL.ink,CW);y+=6;
  text(insp.conclusion||(insp.defects.length?'Выявленные недостатки подлежат устранению застройщиком. Квартира может быть принята после их устранения и повторного осмотра.':'Недостатков, препятствующих приёмке, не выявлено.'),M,23,400,COL.ink,CW,1.45);
  y+=40;ensure(3*90);
- for(const [k,v] of [['Специалист по приёмке',insp.inspector],['Собственник / участник ДДУ',insp.owner],['Представитель застройщика',insp.developer]]){
+ for(const [k,v] of [['Специалист по приёмке',insp.inspector],['Собственник / участник ДДУ',insp.owner],...(hasDev(insp)?[['Представитель застройщика',insp.developer]]:[])]){
   font(21);ctx.fillStyle=COL.muted;ctx.fillText(k,M,y+30);ctx.fillStyle=COL.ink;ctx.fillRect(M+400,y+56,330,2);font(21);ctx.fillText(v?`/ ${v} /`:'/                        /',M+760,y+30);y+=84}
  // Колонтитулы
  pages.forEach((pc,i)=>{const c2=pc.getContext('2d');c2.textBaseline='top';c2.font=`400 18px ${F}`;c2.fillStyle=COL.muted;
@@ -563,6 +568,7 @@ function makePdf(jpgs,W,H){
 /* Обновления: новая версия скачивается в фоне и ждёт, пока сотрудник нажмёт «Обновить» */
 if('serviceWorker' in navigator&&location.protocol!=='file:')(async()=>{
  let reg;try{reg=await navigator.serviceWorker.register('sw.js',{updateViaCache:'none'})}catch(e){return}
+ if(!reg)return;
  const show=()=>{if(reg.waiting&&navigator.serviceWorker.controller)$('#update').hidden=false};
  const track=w=>w&&w.addEventListener('statechange',()=>{if(w.state==='installed')show()});
  show();track(reg.installing);
