@@ -161,6 +161,18 @@ details[open] summary .chev{transform:rotate(180deg)}
 .icon-btn.sm.rm{color:var(--crit)}
 .icon-btn.sm.rm:disabled{color:var(--muted)}
 .sheet-foot{display:grid;gap:10px;padding-top:12px}
+.pad{padding:16px}
+.card.fields.pad{padding:16px}
+.logo-row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.logo-prev{width:160px;height:90px;border:1px dashed var(--line);border-radius:8px;display:grid;place-items:center;background:#fff;color:#66727b;font-size:13px;overflow:hidden;flex:none;max-width:100%}
+.logo-prev img{max-width:100%;max-height:100%;object-fit:contain}
+.logo-btns{display:flex;flex-direction:column;gap:8px;flex:1;min-width:140px}
+.logo-btns .btn{min-height:44px;flex:none}
+.qr-card{display:grid;gap:12px}
+#qrBody{display:grid;gap:12px}
+.qr-prev{display:flex;gap:14px;align-items:center}
+.qr-prev canvas{width:120px;height:120px;image-rendering:pixelated;border-radius:6px;flex:none;border:1px solid var(--line)}
+.qr-prev .note{padding:0}
 .check{display:flex;align-items:center;gap:12px;min-height:44px;cursor:pointer;font-size:15px}
 .check input{width:22px;height:22px;margin:0;accent-color:var(--ink);flex:none}
 .custom-room .input{flex:1;min-width:0}
@@ -175,10 +187,12 @@ details[open] summary .chev{transform:rotate(180deg)}
 <div id="toast" class="toast" hidden></div>
 <input type="file" id="cam" accept="image/*" capture="environment" hidden>
 <input type="file" id="gal" accept="image/*" multiple hidden>
+<input type="file" id="logoFile" accept="image/*" hidden>
+<script src="vendor/qrcode.min.js"></script>
 <script>
 'use strict';
 // Версию не меняйте вручную — используйте ./bump-version.sh <версия>
-const APP_VERSION='0.0.4';
+const APP_VERSION='0.0.5';
 /* ====================== Справочники ====================== */
 const ROOMS=['Прихожая','Коридор','Кухня','Гостиная','Комната 1','Комната 2','Комната 3','Санузел','Ванная','Туалет','Балкон / лоджия','Гардероб','Общее по квартире'];
 const CATS=['Стены','Потолок','Пол','Окна','Двери','Сантехника','Электрика','Отопление и вентиляция','Отделка','Прочее'];
@@ -209,6 +223,7 @@ const ICON={
  grip:'<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+ gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
  save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
 };
 
@@ -225,8 +240,8 @@ function debounce(fn,ms){let t;const f=(...a)=>{clearTimeout(t);t=setTimeout(()=
 
 /* ====================== Хранилище (IndexedDB) ====================== */
 let dbp;
-function db(){return dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open('priemka',1);
- r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('inspections',{keyPath:'id'});d.createObjectStore('photos',{keyPath:'id'})};
+function db(){return dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open('priemka',2);
+ r.onupgradeneeded=()=>{const d=r.result;for(const n of ['inspections','photos','settings'])if(!d.objectStoreNames.contains(n))d.createObjectStore(n,{keyPath:'id'})};
  r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}))}
 async function tx(store,mode,fn){const d=await db();return new Promise((res,rej)=>{const t=d.transaction(store,mode);let out;const r=fn(t.objectStore(store));
  if(r)r.onsuccess=()=>out=r.result;t.oncomplete=()=>res(out);t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error)})}
@@ -279,6 +294,7 @@ async function route(){
  window.scrollTo(0,0);
  const p=(location.hash.slice(1)||'/').split('/').filter(Boolean);
  try{
+  if(p[0]==='settings')return await viewSettings();
   if(p[0]==='i'&&p[2]==='d')return await viewDefect(p[1],p[3]);
   if(p[0]==='i'&&p[2]==='export')return await viewExport(p[1]);
   if(p[0]==='i')return await viewInspection(p[1]);
@@ -289,7 +305,8 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&leaving)le
 
 /* ====================== Экран: список осмотров ====================== */
 async function viewList(){
- setBar('Приёмка квартир',null);
+ setBar('Приёмка квартир',null,`<button class="icon-btn" id="tplBtn" aria-label="Шаблон акта">${ICON.gear}</button>`);
+ $('#tplBtn').onclick=()=>go('/settings');
  const all=(await DB.all()).sort((a,b)=>b.updated-a.updated);
  const app=$('#app');
  if(!all.length){app.innerHTML=`<div class="empty"><strong>Осмотров пока нет</strong>Создайте осмотр, чтобы вносить дефекты по помещениям и получить акт в Word или PDF. Всё хранится на этом телефоне и работает без интернета.</div>`}
@@ -490,8 +507,10 @@ async function viewExport(id){
   <div class="export-row"><span class="ext">PDF</span><span class="export-info"><b>PDF</b><small>Для отправки и печати</small></span></div>
   <div class="export-btns" id="pdf-btns"><button class="btn primary" data-make="pdf">Сформировать</button></div>
  </div>
+ <button class="link-btn" id="toTpl">${ICON.gear}Логотип, контакты и QR в акте</button>
  <p class="note">Файл сохранится в «Загрузки» или откроется меню «Поделиться» — можно сразу отправить в мессенджер или на почту.</p>`;
  setActions('');
+ $('#toTpl').onclick=()=>go('/settings');
  const base=`Акт_кв${(insp.apt||'').replace(/[^\wа-яА-ЯёЁ-]+/g,'_')||'Б-Н'}_${fmtDate(insp.date).replace(/\./g,'-')}`;
  document.querySelectorAll('[data-make]').forEach(b=>b.onclick=async()=>{
   const kind=b.dataset.make;const box=$('#'+kind+'-btns');b.disabled=true;b.textContent='Формирую…';
@@ -505,6 +524,110 @@ async function viewExport(id){
  });
 }
 function download(blob,name){const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),30000)}
+
+/* ====================== Шаблон акта ====================== */
+const DEFAULT_TPL={id:'template',company:'',phone:'',email:'',site:'',address:'',logo:null,
+ qrMode:'off',qrText:'',qrCaption:'Наши контакты',
+ title:'Акт осмотра квартиры',subtitle:'Перечень выявленных недостатков (дефектов)',
+ conclusionDefects:'Выявленные недостатки подлежат устранению застройщиком. Квартира может быть принята после их устранения и повторного осмотра.',
+ conclusionClean:'Недостатков, препятствующих приёмке, не выявлено.'};
+async function getTpl(){const t=await tx('settings','readonly',s=>s.get('template'));return {...DEFAULT_TPL,...(t||{})}}
+const saveTpl=t=>tx('settings','readwrite',s=>s.put(t));
+const normUrl=u=>{u=String(u||'').trim();return !u||/^https?:\/\//i.test(u)?u:'https://'+u};
+const telDigits=p=>String(p||'').replace(/[^\d+]/g,'');
+const vEsc=v=>String(v).replace(/\\/g,'\\\\').replace(/\r?\n/g,'\\n').replace(/([,;])/g,'\\$1');
+function qrPayload(t){switch(t.qrMode){
+ case 'vcard':{if(!t.company&&!t.phone&&!t.email&&!t.site)return '';const nm=t.company||'Контакт';
+  const L=['BEGIN:VCARD','VERSION:3.0',`N:${vEsc(nm)};;;;`,`FN:${vEsc(nm)}`];
+  if(t.company)L.push('ORG:'+vEsc(t.company));if(t.phone)L.push('TEL;TYPE=WORK,VOICE:'+telDigits(t.phone));
+  if(t.email)L.push('EMAIL;TYPE=INTERNET:'+t.email.trim());if(t.site)L.push('URL:'+normUrl(t.site));
+  if(t.address)L.push(`ADR;TYPE=WORK:;;${vEsc(t.address)};;;;`);L.push('END:VCARD');return L.join('\r\n')}
+ case 'phone':return t.phone?'tel:'+telDigits(t.phone):'';
+ case 'url':return normUrl(t.site);
+ case 'text':return (t.qrText||'').trim();
+ default:return ''}}
+const QR_HINT={vcard:'Заполните название, телефон, email или сайт компании',phone:'Заполните телефон компании',url:'Заполните сайт компании',text:'Введите текст или ссылку'};
+function qrMatrix(text){if(!text||typeof qrcode==='undefined')return null;
+ qrcode.stringToBytes=qrcode.stringToBytesFuncs['UTF-8'];const q=qrcode(0,'M');q.addData(text,'Byte');q.make();
+ const n=q.getModuleCount();return {n,dark:(r,c)=>q.isDark(r,c)}}
+// QR как картинка: по 1 пикселю на модуль, с белой рамкой 4 модуля
+function qrCanvas(m,scale=1,quiet=4){const n=m.n+quiet*2,c=document.createElement('canvas');c.width=c.height=n*scale;const x=c.getContext('2d');
+ x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.fillStyle='#000';
+ for(let r=0;r<m.n;r++)for(let k=0;k<m.n;k++)if(m.dark(r,k))x.fillRect((k+quiet)*scale,(r+quiet)*scale,scale,scale);return c}
+function qrGray(m,quiet=4){const n=m.n+quiet*2,d=new Uint8Array(n*n).fill(255);
+ for(let r=0;r<m.n;r++)for(let k=0;k<m.n;k++)if(m.dark(r,k))d[(r+quiet)*n+k+quiet]=0;return {w:n,h:n,data:d}}
+const canvasBytes=(c,type='image/png')=>new Promise(r=>c.toBlob(b=>b.arrayBuffer().then(a=>r(new Uint8Array(a))),type));
+const contactLines=t=>[[t.phone,t.email].filter(Boolean).join(' · '),t.site,t.address].filter(Boolean);
+const hasHeader=t=>!!(t.logo||t.company||contactLines(t).length||qrPayload(t));
+async function prepareLogo(file){const url=URL.createObjectURL(file);
+ try{const img=await loadImage(url);const max=800;let w=img.naturalWidth,h=img.naturalHeight;const s=Math.min(1,max/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);
+  const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+  return {blob:await new Promise(r=>c.toBlob(r,'image/png')),w,h}}finally{URL.revokeObjectURL(url)}}
+
+async function viewSettings(){
+ const t=await getTpl();
+ setBar('Шаблон акта','/');
+ const inp=(k,label,ph='',type='text',attrs='')=>`<div class="field"><label for="t-${k}">${label}</label><input class="input" id="t-${k}" data-t="${k}" type="${type}" value="${esc(t[k])}" placeholder="${esc(ph)}" ${attrs}></div>`;
+ const area=(k,label,ph='')=>`<div class="field"><label for="t-${k}">${label}</label><textarea class="input" id="t-${k}" data-t="${k}" rows="3" placeholder="${esc(ph)}">${esc(t[k])}</textarea></div>`;
+ const MODES=[['off','Без QR'],['vcard','Визитка компании'],['phone','Телефон'],['url','Сайт'],['text','Свой текст']];
+ $('#app').innerHTML=`
+ <p class="note">Эти данные попадут в шапку каждого акта (Word и PDF). Хранятся на этом телефоне.</p>
+ <div class="section-label">Компания</div>
+ <div class="card fields pad">
+  ${inp('company','Название','ООО «Приёмка Про»','text','autocomplete="organization"')}
+  <div class="row2">${inp('phone','Телефон','+7 900 000-00-00','tel','autocomplete="tel"')}${inp('email','Email','info@company.ru','email','autocomplete="email"')}</div>
+  ${inp('site','Сайт','company.ru','url')}
+  ${inp('address','Адрес','г. Екатеринбург, ул. Мира, 1, офис 5')}
+ </div>
+ <div class="section-label">Логотип</div>
+ <div class="card pad logo-row">
+  <div class="logo-prev" id="logoPrev"></div>
+  <div class="logo-btns"><button class="btn" id="logoPick">${ICON.img}<span id="logoPickTxt"></span></button><button class="btn danger" id="logoDel">${ICON.trash}Убрать</button></div>
+ </div>
+ <div class="section-label">QR-код</div>
+ <div class="card pad qr-card">
+  <div class="chips" id="qrMode">${MODES.map(([v,l])=>`<button class="chip" data-v="${v}" aria-pressed="${t.qrMode===v}">${l}</button>`).join('')}</div>
+  <div id="qrBody">
+   <div id="qrTextWrap">${area('qrText','Текст или ссылка','https://t.me/company')}</div>
+   ${inp('qrCaption','Подпись под QR','Наши контакты')}
+   <div class="qr-prev"><canvas id="qrPrev" width="1" height="1"></canvas><p id="qrNote" class="note"></p></div>
+  </div>
+ </div>
+ <div class="section-label">Текст акта</div>
+ <div class="card fields pad">
+  ${inp('title','Заголовок',DEFAULT_TPL.title)}
+  ${inp('subtitle','Подзаголовок',DEFAULT_TPL.subtitle)}
+  ${area('conclusionDefects','Заключение, если есть замечания',DEFAULT_TPL.conclusionDefects)}
+  ${area('conclusionClean','Заключение, если замечаний нет',DEFAULT_TPL.conclusionClean)}
+  <p class="note" style="padding:0">Заключение, введённое в конкретном осмотре, заменяет эти тексты.</p>
+ </div>`;
+ const save=debounce(()=>saveTpl(t),300);leaving=()=>save.flush();
+ const drawLogo=async()=>{$('#logoPrev').innerHTML=t.logo?`<img src="${URL.createObjectURL(t.logo.blob)}" alt="Логотип">`:'<span>Логотип не выбран</span>';
+  $('#logoPickTxt').textContent=t.logo?'Заменить':'Выбрать';$('#logoDel').hidden=!t.logo};
+ const drawQR=()=>{$('#qrBody').hidden=t.qrMode==='off';$('#qrTextWrap').hidden=t.qrMode!=='text';
+  const text=qrPayload(t),cv=$('#qrPrev'),note=$('#qrNote');
+  if(t.qrMode==='off')return;
+  if(!text){cv.hidden=true;note.textContent=QR_HINT[t.qrMode];return}
+  try{const m=qrMatrix(text);const src=qrCanvas(m,1);const k=Math.max(2,Math.floor(180/src.width));
+   cv.width=cv.height=src.width*k;const x=cv.getContext('2d');x.imageSmoothingEnabled=false;x.drawImage(src,0,0,cv.width,cv.height);cv.hidden=false;
+   note.textContent=t.qrMode==='vcard'?'При сканировании телефон предложит сохранить контакт':t.qrMode==='phone'?'При сканировании откроется звонок':t.qrMode==='url'?'При сканировании откроется сайт':'Проверьте QR камерой телефона'}
+  catch(e){cv.hidden=true;note.textContent='Слишком длинный текст для QR'}};
+ document.querySelectorAll('[data-t]').forEach(el=>el.addEventListener('input',()=>{t[el.dataset.t]=el.value;save();drawQR()}));
+ document.querySelectorAll('#qrMode [data-v]').forEach(b=>b.onclick=()=>{t.qrMode=b.dataset.v;document.querySelectorAll('#qrMode [data-v]').forEach(x=>x.setAttribute('aria-pressed',x===b));save();drawQR()});
+ $('#logoPick').onclick=()=>{$('#logoFile').value='';$('#logoFile').click()};
+ $('#logoFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{t.logo=await prepareLogo(f);await saveTpl(t);drawLogo();toast('Логотип добавлен')}catch(err){toast('Не удалось открыть картинку')}};
+ $('#logoDel').onclick=async()=>{t.logo=null;await saveTpl(t);drawLogo()};
+ drawLogo();drawQR();
+ setActions(`<button class="btn" id="sample">${ICON.doc}Пример PDF</button><button class="btn" id="sampleDocx">${ICON.doc}Пример Word</button>`);
+ const sample=()=>({id:'sample',date:today(),object:'ЖК «Пример», ул. Строителей, 1, корп. 2',apt:'25',owner:'Иванов Иван Иванович',inspector:pref.get('inspector')||'Специалист',withDeveloper:false,conclusion:'',rooms:null,
+  defects:[{id:'s1',room:'Кухня',category:'Стены',severity:'major',text:'Отклонение от вертикали 6 мм на 1 м у оконного проёма',norm:'СП 71.13330.2017, табл. 7.4',photos:[]},
+   {id:'s2',room:'Санузел',category:'Сантехника',severity:'crit',text:'Протечка в соединении под раковиной',norm:'',photos:[]},
+   {id:'s3',room:'Комната 1',category:'Окна',severity:'minor',text:'Царапина на стеклопакете, правая створка',norm:'',photos:[]}]});
+ const make=async(kind,b)=>{await save.flush();const old=b.innerHTML;b.disabled=true;b.textContent='Формирую…';
+  try{const blob=kind==='pdf'?await buildPdf(sample()):await buildDocx(sample());download(blob,`Пример_акта.${kind}`)}catch(e){console.error(e);toast('Ошибка: '+e.message)}
+  b.disabled=false;b.innerHTML=old};
+ $('#sample').onclick=e=>make('pdf',e.currentTarget);$('#sampleDocx').onclick=e=>make('docx',e.currentTarget);
+}
 
 /* ====================== ZIP (без сжатия) ====================== */
 const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
@@ -530,14 +653,31 @@ async function buildDocx(insp){
  const P=(runs,o={})=>`<w:p><w:pPr>${o.keep?'<w:keepNext/>':''}<w:spacing w:before="${o.before||0}" w:after="${o.after??80}"/>${o.jc?`<w:jc w:val="${o.jc}"/>`:''}</w:pPr>${runs}</w:p>`;
  const cell=(w,content,o={})=>`<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.span?`<w:gridSpan w:val="${o.span}"/>`:''}${o.fill?`<w:shd w:val="clear" w:color="auto" w:fill="${o.fill}"/>`:''}</w:tcPr>${content||P('')}</w:tc>`;
  const tbl=(cols,rows,borders=true)=>`<w:tbl><w:tblPr><w:tblW w:w="${cols.reduce((a,b)=>a+b,0)}" w:type="dxa"/><w:tblLayout w:type="fixed"/>${borders?`<w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(s=>`<w:${s} w:val="single" w:sz="4" w:space="0" w:color="A9B0B5"/>`).join('')}</w:tblBorders>`:''}<w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="40" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${cols.map(c=>`<w:gridCol w:w="${c}"/>`).join('')}</w:tblGrid>${rows.join('')}</w:tbl>`;
+ const T=await getTpl();
  const media=[];let n=0;
- const image=async pid=>{const p=await DB.photo(pid);if(!p)return '';n++;const rid='rIdImg'+n;media.push({name:`word/media/img${n}.jpg`,data:new Uint8Array(await p.blob.arrayBuffer()),rid,target:`media/img${n}.jpg`});
-  const cx=1371600,cy=Math.round(cx*p.h/p.w);
-  return `<w:p><w:pPr><w:spacing w:before="0" w:after="60"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${n}" name="Фото ${n}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${n}" name="img${n}.jpg"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`};
+ const addMedia=(bytes,ext)=>{n++;const rid='rIdImg'+n;media.push({name:`word/media/img${n}.${ext}`,data:bytes,rid,target:`media/img${n}.${ext}`});return rid};
+ const image=async pid=>{const p=await DB.photo(pid);if(!p)return '';const rid=addMedia(new Uint8Array(await p.blob.arrayBuffer()),'jpg');
+  const cx=1371600,cy=Math.round(cx*p.h/p.w);return drawing(rid,cx,cy)};
+ let did=0;
+ const drawing=(rid,cx,cy,jc)=>{const id=++did;
+  return `<w:p><w:pPr><w:spacing w:before="0" w:after="60"/>${jc?`<w:jc w:val="${jc}"/>`:''}</w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Изображение ${id}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="img${id}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`};
  const c=counts(insp);
  let body='';
- body+=P(run('Акт осмотра квартиры',{b:true,sz:32}),{jc:'center',after:40});
- body+=P(run('Перечень выявленных недостатков (дефектов)',{sz:22,color:'5F6B73'}),{jc:'center',after:240});
+ if(hasHeader(T)){
+  const EMU=360000;let logoCell='',qrCell='';
+  if(T.logo){const s=Math.min(4.2*EMU/T.logo.w,2*EMU/T.logo.h);logoCell=drawing(addMedia(new Uint8Array(await T.logo.blob.arrayBuffer()),'png'),Math.round(T.logo.w*s),Math.round(T.logo.h*s))}
+  const qrText=qrPayload(T);
+  if(qrText){const m=qrMatrix(qrText);const rid=addMedia(await canvasBytes(qrCanvas(m,8)),'png');const sz=Math.round(3*EMU);
+   qrCell=drawing(rid,sz,sz,'right')+(T.qrCaption?P(run(T.qrCaption,{sz:16,color:'5F6B73'}),{jc:'right',after:0}):'')}
+  let info='';if(T.company)info+=P(run(T.company,{b:true,sz:24}),{after:40});
+  for(const l of contactLines(T))info+=P(run(l,{sz:17,color:'5F6B73'}),{after:20});
+  const cols=T.logo?[2700,qrCell?4238:6938]:[qrCell?6938:9638];if(qrCell)cols.push(2700);
+  const cells=[];if(T.logo)cells.push(cell(cols[0],logoCell));cells.push(cell(cols[T.logo?1:0],info||P('')));if(qrCell)cells.push(cell(cols[cols.length-1],qrCell));
+  body+=tbl(cols,[`<w:tr>${cells.join('')}</w:tr>`],false);
+  body+=`<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="8" w:space="1" w:color="1F2B33"/></w:pBdr><w:spacing w:before="0" w:after="240"/></w:pPr></w:p>`;
+ }
+ body+=P(run(T.title||DEFAULT_TPL.title,{b:true,sz:32}),{jc:'center',after:40});
+ if(T.subtitle)body+=P(run(T.subtitle,{sz:22,color:'5F6B73'}),{jc:'center',after:240});
  const meta=[['Объект',insp.object],['Квартира №',insp.apt],['Дата осмотра',fmtDate(insp.date)],['Собственник / участник ДДУ',insp.owner],...(hasDev(insp)?[['Представитель застройщика',insp.developer]]:[]),['Специалист по приёмке',insp.inspector]];
  body+=tbl([3000,6638],meta.map(([k,v])=>`<w:tr>${cell(3000,P(run(k,{color:'5F6B73'}),{after:0}))}${cell(6638,P(run(v||'—',{b:true}),{after:0}))}</w:tr>`),false);
  body+=P(run(`Всего замечаний: ${insp.defects.length}. `,{b:true})+run(`Критичных — ${c.crit||0}, значительных — ${c.major||0}, малозначительных — ${c.minor||0}.`),{before:200,after:200});
@@ -554,16 +694,16 @@ async function buildDocx(insp){
  }
  if(insp.defects.length)body+=tbl(cols,rows);else body+=P(run('Замечаний не выявлено.'));
  body+=P(run('Заключение',{b:true,sz:24}),{before:320,after:80,keep:true});
- body+=P(run(insp.conclusion||(insp.defects.length?'Выявленные недостатки подлежат устранению застройщиком. Квартира может быть принята после их устранения и повторного осмотра.':'Недостатков, препятствующих приёмке, не выявлено.')),{after:360});
+ body+=P(run(insp.conclusion||(insp.defects.length?T.conclusionDefects:T.conclusionClean)),{after:360});
  const sig=[['Специалист по приёмке',insp.inspector],['Собственник / участник ДДУ',insp.owner],...(hasDev(insp)?[['Представитель застройщика',insp.developer]]:[])];
  body+=tbl([3600,3200,2838],sig.map(([k,v])=>`<w:tr>${cell(3600,P(run(k,{color:'5F6B73'}),{before:240,after:0}))}${cell(3200,P(run('______________________'),{before:240,after:0}))}${cell(2838,P(run(v?`/ ${v} /`:'/                    /'),{before:240,after:0}))}</w:tr>`),false);
  const doc=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><w:body>${body}<w:sectPr><w:footerReference w:type="default" r:id="rIdFtr"/><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr></w:body></w:document>`;
- const footer=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="right"/></w:pPr>${run(`Акт осмотра · кв. ${insp.apt||'—'} · стр. `,{sz:16,color:'8A949A'})}<w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`;
+ const footer=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="right"/></w:pPr>${run(`${T.company?T.company+' · ':''}Акт осмотра · кв. ${insp.apt||'—'} · стр. `,{sz:16,color:'8A949A'})}<w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:t>1</w:t></w:r><w:r><w:rPr><w:sz w:val="16"/><w:color w:val="8A949A"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`;
  const styles=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial" w:cs="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:lang w:val="ru-RU"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="80" w:line="264" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`;
  const R='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
  const docRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="${R}/styles" Target="styles.xml"/><Relationship Id="rIdFtr" Type="${R}/footer" Target="footer1.xml"/>${media.map(m=>`<Relationship Id="${m.rid}" Type="${R}/image" Target="${m.target}"/>`).join('')}</Relationships>`;
  const rels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${R}/officeDocument" Target="word/document.xml"/></Relationships>`;
- const ct=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>`;
+ const ct=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>`;
  return zip([{name:'[Content_Types].xml',data:ct},{name:'_rels/.rels',data:rels},{name:'word/document.xml',data:doc},{name:'word/styles.xml',data:styles},{name:'word/footer1.xml',data:footer},{name:'word/_rels/document.xml.rels',data:docRels},...media],
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
 }
@@ -583,10 +723,23 @@ async function buildPdf(insp){
   out.push(line)}return out};
  const text=(t,x,sz,w,color,maxW,lh=1.35)=>{font(sz,w);ctx.fillStyle=color;const lines=wrap(t,maxW);for(const l of lines){ensure(sz*lh);ctx.fillText(l,x,y);y+=sz*lh}return lines.length};
  newPage();
- // Шапка
+ // Шапка компании: логотип · реквизиты · QR
+ const T=await getTpl();const overlays=[];
+ if(hasHeader(T)){const top=y;let left=M,bottom=top;
+  if(T.logo){const img=await loadImage(URL.createObjectURL(T.logo.blob));const s=Math.min(300/T.logo.w,130/T.logo.h);const lw=T.logo.w*s,lh=T.logo.h*s;
+   ctx.drawImage(img,M,top,lw,lh);left=M+lw+32;bottom=Math.max(bottom,top+lh)}
+  const qrText=qrPayload(T);const QS=210;let right=W-M;
+  if(qrText){const m=qrMatrix(qrText);const g=qrGray(m);const qx=W-M-QS;
+   ctx.fillStyle='#fff';ctx.fillRect(qx,top,QS,QS);overlays.push({page:0,x:qx,y:top,w:QS,h:QS,img:g});
+   let qb=top+QS;if(T.qrCaption){font(17);ctx.fillStyle=COL.muted;for(const l of wrap(T.qrCaption,QS+40)){ctx.fillText(l,qx+QS/2-ctx.measureText(l).width/2,qb+4);qb+=22}}
+   right=qx-28;bottom=Math.max(bottom,qb)}
+  let ty=top+4;const tw=right-left;
+  if(T.company){font(28,700);ctx.fillStyle=COL.ink;for(const l of wrap(T.company,tw)){ctx.fillText(l,left,ty);ty+=36}ty+=4}
+  font(19);ctx.fillStyle=COL.muted;for(const line of contactLines(T))for(const l of wrap(line,tw)){ctx.fillText(l,left,ty);ty+=26}
+  bottom=Math.max(bottom,ty);y=bottom+22;ctx.fillStyle=COL.ink;ctx.fillRect(M,y,CW,3);y+=40}
  ctx.fillStyle=COL.accent;ctx.fillRect(M,y,64,8);y+=26;
- text('АКТ ОСМОТРА КВАРТИРЫ',M,40,700,COL.ink,CW,1.2);
- text('Перечень выявленных недостатков (дефектов)',M,24,400,COL.muted,CW);y+=22;
+ text((T.title||DEFAULT_TPL.title).toUpperCase(),M,40,700,COL.ink,CW,1.2);
+ if(T.subtitle)text(T.subtitle,M,24,400,COL.muted,CW);y+=22;
  const meta=[['Объект',insp.object],['Квартира №',insp.apt],['Дата осмотра',fmtDate(insp.date)],['Собственник / участник ДДУ',insp.owner],...(hasDev(insp)?[['Представитель застройщика',insp.developer]]:[]),['Специалист по приёмке',insp.inspector]];
  for(const [k,v] of meta){const y0=y;font(22);ctx.fillStyle=COL.muted;ctx.fillText(k,M,y);text(v||'—',M+380,22,700,COL.ink,CW-380);y=Math.max(y,y0+30)+8;
   ctx.fillStyle=COL.line;ctx.fillRect(M,y-4,CW,1)}
@@ -624,19 +777,19 @@ async function buildPdf(insp){
  if(!insp.defects.length)text('Замечаний не выявлено.',M,24,400,COL.ink,CW);
  // Заключение и подписи
  y+=20;ensure(160);text('Заключение',M,28,700,COL.ink,CW);y+=6;
- text(insp.conclusion||(insp.defects.length?'Выявленные недостатки подлежат устранению застройщиком. Квартира может быть принята после их устранения и повторного осмотра.':'Недостатков, препятствующих приёмке, не выявлено.'),M,23,400,COL.ink,CW,1.45);
+ text(insp.conclusion||(insp.defects.length?T.conclusionDefects:T.conclusionClean),M,23,400,COL.ink,CW,1.45);
  y+=40;ensure(3*90);
  for(const [k,v] of [['Специалист по приёмке',insp.inspector],['Собственник / участник ДДУ',insp.owner],...(hasDev(insp)?[['Представитель застройщика',insp.developer]]:[])]){
   font(21);ctx.fillStyle=COL.muted;ctx.fillText(k,M,y+30);ctx.fillStyle=COL.ink;ctx.fillRect(M+400,y+56,330,2);font(21);ctx.fillText(v?`/ ${v} /`:'/                        /',M+760,y+30);y+=84}
  // Колонтитулы
  pages.forEach((pc,i)=>{const c2=pc.getContext('2d');c2.textBaseline='top';c2.font=`400 18px ${F}`;c2.fillStyle=COL.muted;
-  c2.fillText(`Акт осмотра · кв. ${insp.apt||'—'} · ${fmtDate(insp.date)}`,M,H-56);const s=`стр. ${i+1} из ${pages.length}`;c2.fillText(s,W-M-c2.measureText(s).width,H-56);
+  c2.fillText(`${T.company?T.company+' · ':''}Акт осмотра · кв. ${insp.apt||'—'} · ${fmtDate(insp.date)}`,M,H-56);const s=`стр. ${i+1} из ${pages.length}`;c2.fillText(s,W-M-c2.measureText(s).width,H-56);
   c2.fillStyle=COL.line;c2.fillRect(M,H-70,CW,1)});
  // Сборка PDF
  const jpgs=[];for(const pc of pages){const b=await new Promise(r=>pc.toBlob(r,'image/jpeg',0.88));jpgs.push(new Uint8Array(await b.arrayBuffer()));pc.width=pc.height=0}
- return makePdf(jpgs,W,H);
+ return makePdf(jpgs,W,H,overlays);
 }
-function makePdf(jpgs,W,H){
+function makePdf(jpgs,W,H,overlays=[]){
  const enc=new TextEncoder();const chunks=[];let len=0;const offs=[];
  const put=d=>{const u=typeof d==='string'?enc.encode(d):d;chunks.push(u);len+=u.length};
  const N=jpgs.length;const pw=595.28,ph=841.89;
@@ -644,11 +797,15 @@ function makePdf(jpgs,W,H){
  const obj=(i,body)=>{offs[i]=len;put(`${i} 0 obj\n`);if(Array.isArray(body))body.forEach(put);else put(body);put('\nendobj\n')};
  obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
  obj(2,`<< /Type /Pages /Count ${N} /Kids [${jpgs.map((_,i)=>`${3+i*3} 0 R`).join(' ')}] >>`);
- jpgs.forEach((j,i)=>{const p=3+i*3;
-  obj(p,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im${i} ${p+2} 0 R >> >> /Contents ${p+1} 0 R >>`);
-  const cs=`q ${pw} 0 0 ${ph} 0 0 cm /Im${i} Do Q`;obj(p+1,`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`);
+ const K=pw/W,f=v=>v.toFixed(2),ovId=k=>3+N*3+k;
+ jpgs.forEach((j,i)=>{const p=3+i*3;const ov=overlays.map((o,k)=>({...o,k})).filter(o=>o.page===i);
+  obj(p,`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Resources << /XObject << /Im${i} ${p+2} 0 R ${ov.map(o=>`/Ov${o.k} ${ovId(o.k)} 0 R`).join(' ')} >> >> /Contents ${p+1} 0 R >>`);
+  const cs=`q ${pw} 0 0 ${ph} 0 0 cm /Im${i} Do Q`+ov.map(o=>` q ${f(o.w*K)} 0 0 ${f(o.h*K)} ${f(o.x*K)} ${f(ph-(o.y+o.h)*K)} cm /Ov${o.k} Do Q`).join('');
+  obj(p+1,`<< /Length ${cs.length} >>\nstream\n${cs}\nendstream`);
   obj(p+2,[`<< /Type /XObject /Subtype /Image /Width ${W} /Height ${H} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${j.length} >>\nstream\n`,j,'\nendstream'])});
- const total=3+N*3;const xref=len;
+ // QR без сжатия JPEG: 1 пиксель на модуль, без сглаживания — сканируется уверенно
+ overlays.forEach((o,k)=>obj(ovId(k),[`<< /Type /XObject /Subtype /Image /Width ${o.img.w} /Height ${o.img.h} /ColorSpace /DeviceGray /BitsPerComponent 8 /Interpolate false /Length ${o.img.data.length} >>\nstream\n`,o.img.data,'\nendstream']));
+ const total=3+N*3+overlays.length;const xref=len;
  put(`xref\n0 ${total}\n0000000000 65535 f \n`+offs.slice(1).map(o=>String(o).padStart(10,'0')+' 00000 n \n').join(''));
  put(`trailer\n<< /Size ${total} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
  return new Blob(chunks,{type:'application/pdf'});
