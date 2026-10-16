@@ -186,6 +186,9 @@ details[open] summary .chev{transform:rotate(180deg)}
 .norm-body b{font-size:14px;font-weight:650}
 .norm-body span{font-size:13px;color:var(--muted)}
 .norm-body small{font-size:12.5px;color:var(--ink);opacity:.8}
+.cat-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.cat-list .room-item{padding-left:4px}
+.cat-empty{color:var(--muted);font-size:14px;padding:10px 4px}
 .check{display:flex;align-items:center;gap:12px;min-height:44px;cursor:pointer;font-size:15px}
 .check input{width:22px;height:22px;margin:0;accent-color:var(--ink);flex:none}
 .custom-room .input{flex:1;min-width:0}
@@ -206,7 +209,7 @@ details[open] summary .chev{transform:rotate(180deg)}
 <script>
 'use strict';
 // Версию не меняйте вручную — используйте ./bump-version.sh <версия>
-const APP_VERSION='0.0.6';
+const APP_VERSION='0.0.7';
 /* ====================== Справочники ====================== */
 const ROOMS=['Прихожая','Коридор','Кухня','Гостиная','Комната 1','Комната 2','Комната 3','Санузел','Ванная','Туалет','Балкон / лоджия','Гардероб','Общее по квартире'];
 const CATS=['Стены','Потолок','Пол','Окна','Двери','Сантехника','Электрика','Отопление и вентиляция','Отделка','Прочее'];
@@ -291,6 +294,11 @@ function grouped(insp){const order=roomOrder(insp);const g=[];let n=0;
  for(const r of order){const items=insp.defects.filter(d=>d.room===r);if(!items.length)continue;g.push({room:r,items:items.map(d=>({n:++n,d}))})}return g}
 function counts(insp){const c={crit:0,major:0,minor:0};for(const d of insp.defects)c[d.severity]=(c[d.severity]||0)+1;return c}
 const hasDev=i=>i.withDeveloper??!!i.developer; // старые осмотры: поле включено, если заполнено
+// Конструктивы: стандартные + добавленные пользователем (общие для всех осмотров, хранятся в шаблоне)
+const catList=(T,extra)=>{const l=[...CATS];for(const c of [...(T.customCats||[]),extra])if(c&&!l.some(x=>x.toLowerCase()===c.toLowerCase()))l.push(c);return l};
+async function addCustomCat(T,v){v=String(v||'').trim().replace(/\s+/g,' ');if(!v)return null;
+ const all=catList(T);const same=all.find(x=>x.toLowerCase()===v.toLowerCase());if(same)return same;
+ T.customCats=[...(T.customCats||[]),v];await saveTpl(T);return v}
 const isEmptyDefect=d=>!d.text.trim()&&!d.photos.length;
 
 /* ====================== Каркас ====================== */
@@ -416,7 +424,8 @@ async function viewDefect(id,did){
   <div class="custom-room"><input class="input" id="customRoom" placeholder="Другое помещение…"><button class="btn" id="addRoom" style="flex:none">Добавить</button></div>
  </div>
  <div class="field"><span class="flabel">Конструктив</span>
-  <div class="chips" id="cats">${CATS.map(c=>`<button class="chip" aria-pressed="${c===d.category}" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+  <div class="chips" id="cats">${catList(T,d.category).map(c=>`<button class="chip" aria-pressed="${c===d.category}" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+  <div class="custom-room"><input class="input" id="customCat" placeholder="Другой конструктив…" autocomplete="off"><button class="btn" id="addCat" style="flex:none">Добавить</button></div>
  </div>
  <div class="field"><span class="flabel">Критичность</span>
   <div class="sev" id="sev">${SEV.map(s=>`<button class="${s.id}" aria-pressed="${s.id===d.severity}" data-v="${s.id}"><span class="dot ${s.id}"></span>${s.label}</button>`).join('')}</div>
@@ -451,6 +460,12 @@ async function viewDefect(id,did){
    parts=has?parts.filter(p=>!refs.includes(p)):[...parts,...refs.filter(r=>!parts.includes(r))];
    d.norm=parts.join('; ');d.normAuto=false;$('#norm').value=d.norm;save();updateNorms(false)};
   updateNorms();
+  const addCat=async()=>{const inp=$('#customCat');const raw=inp.value.trim();if(!raw)return;
+   const existed=catList(T).some(x=>x.toLowerCase()===raw.toLowerCase());const v=await addCustomCat(T,raw);
+   d.category=v;pref.set('cat',v);save();render();updateNorms();toast(existed?'Выбран: '+v:'Конструктив добавлен')};
+  $('#addCat').onclick=addCat;
+  $('#customCat').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addCat()}};
+  $('#customRoom').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('#addRoom').click()}};
   $('#addRoom').onclick=()=>{const v=$('#customRoom').value.trim();if(!v)return;const order=roomOrder(insp);if(!order.includes(v)){order.push(v);insp.rooms=order}
    d.room=v;pref.set('room',v);save();render();
    // сразу предложить поставить новое помещение на место
@@ -563,7 +578,7 @@ function download(blob,name){const u=URL.createObjectURL(blob);const a=document.
 
 /* ====================== Шаблон акта ====================== */
 const DEFAULT_TPL={id:'template',company:'',phone:'',email:'',site:'',address:'',logo:null,
- qrMode:'off',qrText:'',qrCaption:'Наши контакты',normAuto:true,normSource:'both',
+ qrMode:'off',qrText:'',qrCaption:'Наши контакты',normAuto:true,normSource:'both',customCats:[],
  title:'Акт осмотра квартиры',subtitle:'Перечень выявленных недостатков (дефектов)',
  conclusionDefects:'Выявленные недостатки подлежат устранению застройщиком. Квартира может быть принята после их устранения и повторного осмотра.',
  conclusionClean:'Недостатков, препятствующих приёмке, не выявлено.'};
@@ -629,6 +644,13 @@ async function viewSettings(){
    <div class="qr-prev"><canvas id="qrPrev" width="1" height="1"></canvas><p id="qrNote" class="note"></p></div>
   </div>
  </div>
+ <div class="section-label">Конструктивы</div>
+ <div class="card pad qr-card">
+  <p class="note" style="padding:0">Свои значения появятся в форме замечания у всех осмотров. Добавлять их можно и прямо из формы.</p>
+  <ul class="cat-list" id="catList"></ul>
+  <div class="custom-room"><input class="input" id="t-newCat" placeholder="Например: Фасад" autocomplete="off"><button class="btn" id="t-addCat" style="flex:none">Добавить</button></div>
+  <p class="note" style="padding:0">Стандартные: ${CATS.join(', ')}.</p>
+ </div>
  <div class="section-label">Нормативы</div>
  <div class="card pad qr-card">
   <label class="check" for="t-normAuto"><input type="checkbox" id="t-normAuto" ${t.normAuto!==false?'checked':''}><span>Подбирать норматив по описанию дефекта</span></label>
@@ -657,6 +679,18 @@ async function viewSettings(){
   catch(e){cv.hidden=true;note.textContent='Слишком длинный текст для QR'}};
  document.querySelectorAll('[data-t]').forEach(el=>el.addEventListener('input',()=>{t[el.dataset.t]=el.value;save();drawQR()}));
  document.querySelectorAll('#qrMode [data-v]').forEach(b=>b.onclick=()=>{t.qrMode=b.dataset.v;document.querySelectorAll('#qrMode [data-v]').forEach(x=>x.setAttribute('aria-pressed',x===b));save();drawQR()});
+ const drawCats=()=>{const l=t.customCats||[];
+  $('#catList').innerHTML=l.length?l.map((c,i)=>`<li class="room-item"><span class="room-name">${esc(c)}</span>
+   <button class="icon-btn sm" data-cmv="-1" data-i="${i}" aria-label="Выше: ${esc(c)}" ${i===0?'disabled':''}>${ICON.up}</button>
+   <button class="icon-btn sm" data-cmv="1" data-i="${i}" aria-label="Ниже: ${esc(c)}" ${i===l.length-1?'disabled':''}>${ICON.down}</button>
+   <button class="icon-btn sm rm" data-crm="${i}" aria-label="Убрать: ${esc(c)}">${ICON.trash}</button></li>`).join(''):'<li class="cat-empty">Своих конструктивов пока нет</li>'};
+ $('#catList').onclick=async e=>{const b=e.target.closest('button');if(!b||b.disabled)return;const l=[...(t.customCats||[])];
+  if(b.dataset.crm!=null)l.splice(+b.dataset.crm,1);
+  else{const i=+b.dataset.i,j=i+ +b.dataset.cmv;[l[i],l[j]]=[l[j],l[i]]}
+  t.customCats=l;await saveTpl(t);drawCats()};
+ const addCatS=async()=>{const inp=$('#t-newCat');const v=await addCustomCat(t,inp.value);if(!v)return;inp.value='';drawCats();toast('Конструктив добавлен')};
+ $('#t-addCat').onclick=addCatS;$('#t-newCat').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addCatS()}};
+ drawCats();
  $('#t-normAuto').onchange=e=>{t.normAuto=e.target.checked;save()};
  document.querySelectorAll('#normSrc [data-v]').forEach(b=>b.onclick=()=>{t.normSource=b.dataset.v;document.querySelectorAll('#normSrc [data-v]').forEach(x=>x.setAttribute('aria-pressed',x===b));save()});
  $('#logoPick').onclick=()=>{$('#logoFile').value='';$('#logoFile').click()};
