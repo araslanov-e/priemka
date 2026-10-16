@@ -1,6 +1,6 @@
 // Офлайн-кэш приложения.
 // Версию не меняйте вручную — используйте ./bump-version.sh <версия>, он обновит её здесь и в index.html.
-const VERSION='0.0.7';
+const VERSION='0.0.8';
 const CACHE='priemka-'+VERSION;
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./vendor/qrcode.min.js','./norms.js'];
 

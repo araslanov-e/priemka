@@ -209,7 +209,7 @@ details[open] summary .chev{transform:rotate(180deg)}
 <script>
 'use strict';
 // Версию не меняйте вручную — используйте ./bump-version.sh <версия>
-const APP_VERSION='0.0.7';
+const APP_VERSION='0.0.8';
 /* ====================== Справочники ====================== */
 const ROOMS=['Прихожая','Коридор','Кухня','Гостиная','Комната 1','Комната 2','Комната 3','Санузел','Ванная','Туалет','Балкон / лоджия','Гардероб','Общее по квартире'];
 const CATS=['Стены','Потолок','Пол','Окна','Двери','Сантехника','Электрика','Отопление и вентиляция','Отделка','Прочее'];
@@ -294,6 +294,10 @@ function grouped(insp){const order=roomOrder(insp);const g=[];let n=0;
  for(const r of order){const items=insp.defects.filter(d=>d.room===r);if(!items.length)continue;g.push({room:r,items:items.map(d=>({n:++n,d}))})}return g}
 function counts(insp){const c={crit:0,major:0,minor:0};for(const d of insp.defects)c[d.severity]=(c[d.severity]||0)+1;return c}
 const hasDev=i=>i.withDeveloper??!!i.developer; // старые осмотры: поле включено, если заполнено
+// Характеристики объекта: свободный текст, по строке на характеристику. «Название: значение» выводится в акте таблицей
+const CHAR_LABELS=['Вид отделки','Стены','Пол','Потолок','Окна','Двери','Сантехника','Площадь','Комнат','Этаж'];
+const hasChars=i=>!!(i.withChars&&String(i.chars||'').trim());
+const parseChars=t=>String(t||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean).map(l=>{const m=l.match(/^([^:]{1,40}):\s*(.*)$/);return m?[m[1].trim(),m[2].trim()]:[null,l]});
 // Конструктивы: стандартные + добавленные пользователем (общие для всех осмотров, хранятся в шаблоне)
 const catList=(T,extra)=>{const l=[...CATS];for(const c of [...(T.customCats||[]),extra])if(c&&!l.some(x=>x.toLowerCase()===c.toLowerCase()))l.push(c);return l};
 async function addCustomCat(T,v){v=String(v||'').trim().replace(/\s+/g,' ');if(!v)return null;
@@ -365,6 +369,13 @@ async function viewInspection(id){
    <div class="field"><label for="f-owner">Собственник / участник ДДУ</label><input class="input" id="f-owner" data-f="owner" value="${esc(insp.owner)}" autocomplete="off"></div>
    <label class="check" for="f-withdev"><input type="checkbox" id="f-withdev" ${hasDev(insp)?'checked':''}><span>Присутствует представитель застройщика</span></label>
    <div class="field" id="devField" ${hasDev(insp)?'':'hidden'}><label for="f-developer">Представитель застройщика</label><input class="input" id="f-developer" data-f="developer" value="${esc(insp.developer)}" autocomplete="off"></div>
+   <label class="check" for="f-withchars"><input type="checkbox" id="f-withchars" ${insp.withChars?'checked':''}><span>Добавить характеристики объекта</span></label>
+   <div class="field" id="charsField" ${insp.withChars?'':'hidden'}>
+    <label for="f-chars">Характеристики объекта</label>
+    <div class="phrases" id="charLabels">${CHAR_LABELS.map(l=>`<button class="phrase" data-cl="${esc(l)}">${esc(l)}:</button>`).join('')}</div>
+    <textarea class="input" id="f-chars" data-f="chars" rows="5" placeholder="Вид отделки: чистовая от застройщика&#10;Стены: обои под покраску&#10;Пол: ламинат, в санузле — керамогранит">${esc(insp.chars||'')}</textarea>
+    <span class="note" style="padding:0;font-size:13px">По строке на характеристику. Попадёт в акт перед замечаниями.</span>
+   </div>
    <div class="field"><label for="f-inspector">Специалист по приёмке</label><input class="input" id="f-inspector" data-f="inspector" value="${esc(insp.inspector)}" autocomplete="name"></div>
    <div class="field"><label for="f-conclusion">Заключение (в конце акта)</label><textarea class="input" id="f-conclusion" data-f="conclusion" placeholder="Квартира не может быть принята до устранения замечаний, указанных в акте.">${esc(insp.conclusion)}</textarea></div>
   </div>
@@ -381,6 +392,10 @@ async function viewInspection(id){
  app.querySelectorAll('[data-f]').forEach(el=>el.addEventListener('input',()=>{insp[el.dataset.f]=el.value;if(el.dataset.f==='inspector')pref.set('inspector',el.value);
   if(el.dataset.f==='apt')$('#bar h1').textContent=el.value?'Кв. '+el.value:'Новый осмотр';save()}));
  $('#order').onclick=()=>openRoomSheet(insp,{onDone:()=>viewInspection(id)});
+ $('#f-withchars').onchange=e=>{insp.withChars=e.target.checked;$('#charsField').hidden=!e.target.checked;if(e.target.checked)$('#f-chars').focus();save()};
+ $('#charLabels').onclick=e=>{const b=e.target.closest('[data-cl]');if(!b)return;const ta=$('#f-chars');
+  const v=ta.value.replace(/\s+$/,'');ta.value=(v?v+'\n':'')+b.dataset.cl+': ';insp.chars=ta.value;save();
+  ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length)};
  $('#f-withdev').onchange=e=>{insp.withDeveloper=e.target.checked;$('#devField').hidden=!e.target.checked;if(e.target.checked)$('#f-developer').focus();save()};
  leaving=()=>save.flush();
  app.querySelectorAll('.defect').forEach(b=>b.onclick=()=>go(`/i/${id}/d/${b.dataset.d}`));
@@ -698,7 +713,7 @@ async function viewSettings(){
  $('#logoDel').onclick=async()=>{t.logo=null;await saveTpl(t);drawLogo()};
  drawLogo();drawQR();
  setActions(`<button class="btn" id="sample">${ICON.doc}Пример PDF</button><button class="btn" id="sampleDocx">${ICON.doc}Пример Word</button>`);
- const sample=()=>({id:'sample',date:today(),object:'ЖК «Пример», ул. Строителей, 1, корп. 2',apt:'25',owner:'Иванов Иван Иванович',inspector:pref.get('inspector')||'Специалист',withDeveloper:false,conclusion:'',rooms:null,
+ const sample=()=>({id:'sample',date:today(),object:'ЖК «Пример», ул. Строителей, 1, корп. 2',apt:'25',owner:'Иванов Иван Иванович',inspector:pref.get('inspector')||'Специалист',withDeveloper:false,withChars:true,chars:'Вид отделки: чистовая от застройщика\nСтены: обои под покраску, в санузле — керамическая плитка\nПол: ламинат 33 класса, в санузле — керамогранит\nПотолок: натяжной матовый\nОкна: ПВХ, двухкамерный стеклопакет',conclusion:'',rooms:null,
   defects:[{id:'s1',room:'Кухня',category:'Стены',severity:'major',text:'Отклонение от вертикали 6 мм на 1 м у оконного проёма',norm:'Приказ Минстроя России от 19.02.2025 № 91/пр, прил., п. 1; ГОСТ Р 72509-2026, табл. 5.1',photos:[]},
    {id:'s2',room:'Санузел',category:'Сантехника',severity:'crit',text:'Протечка в соединении под раковиной',norm:'',photos:[]},
    {id:'s3',room:'Комната 1',category:'Окна',severity:'minor',text:'Царапина на стеклопакете, правая створка',norm:'',photos:[]}]});
@@ -759,6 +774,12 @@ async function buildDocx(insp){
  if(T.subtitle)body+=P(run(T.subtitle,{sz:22,color:'5F6B73'}),{jc:'center',after:240});
  const meta=[['Объект',insp.object],['Квартира №',insp.apt],['Дата осмотра',fmtDate(insp.date)],['Собственник / участник ДДУ',insp.owner],...(hasDev(insp)?[['Представитель застройщика',insp.developer]]:[]),['Специалист по приёмке',insp.inspector]];
  body+=tbl([3000,6638],meta.map(([k,v])=>`<w:tr>${cell(3000,P(run(k,{color:'5F6B73'}),{after:0}))}${cell(6638,P(run(v||'—',{b:true}),{after:0}))}</w:tr>`),false);
+ if(hasChars(insp)){
+  body+=P(run('Характеристики объекта',{b:true,sz:24}),{before:240,after:80,keep:true});
+  body+=tbl([3000,6638],parseChars(insp.chars).map(([k,v])=>k
+   ?`<w:tr>${cell(3000,P(run(k,{color:'5F6B73'}),{after:0}))}${cell(6638,P(run(v||'—'),{after:0}))}</w:tr>`
+   :`<w:tr>${cell(9638,P(run(v),{after:0}),{span:2})}</w:tr>`),false);
+ }
  body+=P(run(`Всего замечаний: ${insp.defects.length}. `,{b:true})+run(`Критичных — ${c.crit||0}, значительных — ${c.major||0}, малозначительных — ${c.minor||0}.`),{before:200,after:200});
  const cols=[560,4878,1800,2400];
  const rows=[`<w:tr><w:trPr><w:tblHeader/></w:trPr>${['№','Описание дефекта','Критичность','Фото'].map((h,i)=>cell(cols[i],P(run(h,{b:true,sz:18}),{after:0}),{fill:'E6E3DD'})).join('')}</w:tr>`];
@@ -823,6 +844,12 @@ async function buildPdf(insp){
  for(const [k,v] of meta){const y0=y;font(22);ctx.fillStyle=COL.muted;ctx.fillText(k,M,y);text(v||'—',M+380,22,700,COL.ink,CW-380);y=Math.max(y,y0+30)+8;
   ctx.fillStyle=COL.line;ctx.fillRect(M,y-4,CW,1)}
  y+=24;
+ if(hasChars(insp)){ensure(90);text('Характеристики объекта',M,28,700,COL.ink,CW);y+=8;
+  for(const [k,v] of parseChars(insp.chars)){ensure(34);const y0=y;
+   if(k){font(22);ctx.fillStyle=COL.muted;for(const l of wrap(k,360)){ctx.fillText(l,M,y);y+=30}const yk=y;y=y0;text(v||'—',M+380,22,400,COL.ink,CW-380);y=Math.max(y,yk,y0+30)+8}
+   else{text(v,M,22,400,COL.ink,CW);y+=8}
+   ctx.fillStyle=COL.line;ctx.fillRect(M,y-4,CW,1)}
+  y+=24}
  const c=counts(insp);
  // Сводка
  const bw=CW/4;ensure(110);const sy=y;
